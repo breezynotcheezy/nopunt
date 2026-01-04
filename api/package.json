@@ -2,6 +2,9 @@
   "name": "@nopunt/api",
   "private": true,
   "type": "module",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
