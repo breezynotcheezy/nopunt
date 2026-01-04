@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nopunt
+      POSTGRES_PASSWORD: nopunt
+      POSTGRES_DB: nopunt
+    volumes:
+      - nopunt_pgdata:/var/lib/postgresql/data
+volumes:
+  nopunt_pgdata:

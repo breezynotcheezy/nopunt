@@ -1,0 +1,14 @@
+{
+  "name": "nopunt",
+  "private": true,
+  "workspaces": [
+    "api",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace api run dev",
+    "dev:mobile": "npm --workspace mobile run start",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
+  }
+}
