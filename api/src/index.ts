@@ -9,6 +9,9 @@ import { z } from 'zod';
 
 import { prisma } from './prisma.js';
 
+type ScenarioChoiceLite = { id: string; label: string; order: number };
+type DecisionLite = { scenarioId: string };
+
 const env = {
   PORT: Number(process.env.PORT ?? 3000),
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? '*',
@@ -16,6 +19,7 @@ const env = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? '',
   APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID ?? '',
   REVENUECAT_WEBHOOK_SECRET: process.env.REVENUECAT_WEBHOOK_SECRET ?? '',
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? '',
 };
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID || undefined);
@@ -390,7 +394,7 @@ server.post(
         street: scenario.street,
         spotType: scenario.spotType,
         prompt: scenario.promptJson,
-        choices: scenario.choices.map((c) => ({ id: c.id, label: c.label, order: c.order })),
+        choices: scenario.choices.map((c: ScenarioChoiceLite) => ({ id: c.id, label: c.label, order: c.order })),
       },
     };
   },
@@ -421,7 +425,7 @@ server.get(
       };
     }
 
-    const excludeScenarioIds = drill.decisions.map((d) => d.scenarioId);
+    const excludeScenarioIds = drill.decisions.map((d: DecisionLite) => d.scenarioId);
     const scenario = await pickNextScenarioForUser({ userId, excludeScenarioIds });
     if (!scenario) return reply.code(400).send({ error: 'no_more_scenarios' });
 
@@ -433,7 +437,7 @@ server.get(
         street: scenario.street,
         spotType: scenario.spotType,
         prompt: scenario.promptJson,
-        choices: scenario.choices.map((c) => ({ id: c.id, label: c.label, order: c.order })),
+        choices: scenario.choices.map((c: ScenarioChoiceLite) => ({ id: c.id, label: c.label, order: c.order })),
       },
     };
   },
@@ -607,6 +611,96 @@ server.post('/v1/webhooks/revenuecat', async (req: FastifyRequest, reply: Fastif
 
   return { ok: true };
 });
+
+server.post(
+  '/v1/ai/explain',
+  { preHandler: authenticate },
+  async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!env.OPENAI_API_KEY) {
+      return reply.code(501).send({ error: 'OPENAI_API_KEY not configured' });
+    }
+
+    const body = z
+      .object({
+        scenario: z
+          .object({
+            street: z.string().optional(),
+            spotType: z.string().optional(),
+            prompt: z.any(),
+            choices: z.array(z.object({ id: z.string(), label: z.string(), order: z.number() })),
+          })
+          .passthrough(),
+        userChoiceId: z.string().min(1),
+        correctChoiceId: z.string().min(1).nullable(),
+        isCorrect: z.boolean(),
+      })
+      .parse(req.body);
+
+    const userChoice = body.scenario.choices.find((c: ScenarioChoiceLite) => c.id === body.userChoiceId);
+    const correctChoice = body.correctChoiceId
+      ? body.scenario.choices.find((c: ScenarioChoiceLite) => c.id === body.correctChoiceId)
+      : undefined;
+
+    const userId = (req as any).user.userId as string;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { rating: true, tier: true } });
+
+    const prompt = {
+      scenario: {
+        street: body.scenario.street,
+        spotType: body.scenario.spotType,
+        prompt: body.scenario.prompt,
+        choices: body.scenario.choices.map((c: ScenarioChoiceLite) => ({ order: c.order, label: c.label })),
+      },
+      answer: {
+        isCorrect: body.isCorrect,
+        userChoice: userChoice ? { order: userChoice.order, label: userChoice.label } : null,
+        correctChoice: correctChoice ? { order: correctChoice.order, label: correctChoice.label } : null,
+      },
+      user: user ?? null,
+      output_format: {
+        summary: 'one short paragraph',
+        reasoning: '2-4 bullet points',
+        heuristic: 'one actionable rule-of-thumb',
+      },
+    };
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.4,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a poker coach. Be concise, practical, and avoid long theory. Never mention being an AI. Do not invent stack sizes or actions not present in the prompt. If information is missing, state assumptions explicitly.',
+          },
+          {
+            role: 'user',
+            content: JSON.stringify(prompt),
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return reply.code(502).send({ error: 'ai_provider_error', detail: text.slice(0, 500) });
+    }
+
+    const json = (await res.json()) as any;
+    const content = json?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string' || content.length === 0) {
+      return reply.code(502).send({ error: 'ai_provider_invalid_response' });
+    }
+
+    return { text: content };
+  },
+);
 
 server
   .listen({ port: env.PORT, host: '0.0.0.0' })
