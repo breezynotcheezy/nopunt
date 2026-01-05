@@ -32,6 +32,10 @@
     "plugins": [
       "expo-router"
     ],
+    "extra": {
+      "API_BASE_URL": "http://localhost:3000",
+      "GOOGLE_WEB_CLIENT_ID": ""
+    },
     "experiments": {
       "typedRoutes": true
     }

@@ -1,6 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 
@@ -21,11 +22,16 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const googleClientId =
+    typeof (Constants.expoConfig?.extra as any)?.GOOGLE_WEB_CLIENT_ID === 'string'
+      ? ((Constants.expoConfig?.extra as any)?.GOOGLE_WEB_CLIENT_ID as string)
+      : '';
+
   const redirectUri = AuthSession.makeRedirectUri({});
 
   const requestConfig = useMemo<AuthSession.AuthRequestConfig>(
     () => ({
-      clientId: '',
+      clientId: googleClientId,
       scopes: ['openid', 'profile', 'email'],
       redirectUri,
       responseType: AuthSession.ResponseType.IdToken,
@@ -33,10 +39,10 @@ export default function LoginScreen() {
         nonce: String(Math.random()).slice(2),
       },
     }),
-    [redirectUri],
+    [googleClientId, redirectUri],
   );
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(requestConfig, discovery);
+  const [request, , promptAsync] = AuthSession.useAuthRequest(requestConfig, discovery);
 
   async function finishGoogle(idToken: string) {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -52,6 +58,7 @@ export default function LoginScreen() {
     setError(null);
     setBusy(true);
     try {
+      if (!googleClientId) throw new Error('Missing GOOGLE_WEB_CLIENT_ID in app.json extra');
       if (!request) throw new Error('Google request not ready');
       const result = await promptAsync({ useProxy: true });
       if (result.type !== 'success') throw new Error('Sign-in cancelled');
