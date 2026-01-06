@@ -1,13 +1,13 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import Constants from 'expo-constants';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
+import { demoMode, googleWebClientId } from '@/lib/config';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,10 +22,7 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const googleClientId =
-    typeof (Constants.expoConfig?.extra as any)?.GOOGLE_WEB_CLIENT_ID === 'string'
-      ? ((Constants.expoConfig?.extra as any)?.GOOGLE_WEB_CLIENT_ID as string)
-      : '';
+  const googleClientId = googleWebClientId();
 
   const redirectUri = AuthSession.makeRedirectUri({});
 
@@ -74,6 +71,18 @@ export default function LoginScreen() {
     }
   }
 
+  async function onDemoPress() {
+    setError(null);
+    setBusy(true);
+    try {
+      await signInWithBackendToken('demo');
+    } catch (e: any) {
+      setError(e?.message ?? 'Demo sign-in failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onApplePress() {
     setError(null);
     setBusy(true);
@@ -109,6 +118,10 @@ export default function LoginScreen() {
 
       <Pressable style={[styles.button, busy && styles.buttonDisabled]} onPress={onGooglePress} disabled={busy}>
         <Text style={styles.buttonText}>Continue with Google</Text>
+      </Pressable>
+
+      <Pressable style={[styles.secondaryButton, busy && styles.buttonDisabled]} onPress={onDemoPress} disabled={busy}>
+        <Text style={styles.secondaryButtonText}>{demoMode() ? 'Continue (Demo Mode)' : 'Continue in Demo Mode'}</Text>
       </Pressable>
 
       {Platform.OS === 'ios' && (
@@ -158,6 +171,17 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(17,24,39,0.08)',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
     fontWeight: '700',
     fontSize: 16,
   },

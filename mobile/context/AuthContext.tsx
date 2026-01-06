@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { apiRequest } from '@/lib/api';
+import { demoMode } from '@/lib/config';
 import { clearToken, getToken, setToken } from '@/lib/storage';
 
 type AuthState = {
@@ -40,6 +41,8 @@ export function AuthProvider(props: { children: React.ReactNode }) {
   const signInWithBackendToken = useCallback(async (token: string) => {
     await setToken(token);
     setState({ token, isLoading: false });
+
+    if (demoMode() && token === 'demo') return;
 
     try {
       await apiRequest({ path: '/v1/me', token });
