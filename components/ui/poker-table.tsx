@@ -121,33 +121,16 @@ export function PokerTable({
                   {player.isFolded ? "Fold" : `${player.stack}bb`}
                 </div>
                 {/* Current bet if any */}
-                {player.currentBet && player.currentBet > 0 && !player.isFolded && (
-                  <div className="mt-0.5 text-[8px] font-bold text-primary">{player.currentBet}bb</div>
+                {player.betAmount && player.betAmount > 0 && !player.isFolded && (
+                  <div className="mt-0.5 text-[8px] font-bold text-primary">{player.betAmount}bb</div>
                 )}
               </div>
             )
           })}
 
-          <div className="absolute left-1/2 bottom-[2%] -translate-x-1/2 z-20 flex flex-col items-center">
-            <div className="px-3 py-1 rounded-full bg-gradient-to-r from-primary/80 to-primary border border-primary/50 shadow-lg shadow-primary/30">
-              <span className="text-[10px] font-black text-primary-foreground tracking-wide">{heroPosition} (YOU)</span>
-            </div>
-          </div>
-
-          {/* Pot Display - centered */}
-          <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-            <div className="px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-sm border border-primary/20 shadow-lg">
-              <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-medium">Pot</span>
-              <p className="text-xl font-black text-primary text-center leading-none">
-                {potSize}
-                <span className="text-xs font-bold text-primary/70">bb</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Community Cards - positioned above pot */}
+          {/* Community Cards - centered on the felt */}
           {board && board.length > 0 && (
-            <div className="absolute top-[25%] left-1/2 -translate-x-1/2 flex gap-1">
+            <div className="absolute top-[32%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 z-10">
               {board.map((card, i) => (
                 <PlayingCard key={i} card={card} size="sm" />
               ))}
@@ -159,6 +142,28 @@ export function PokerTable({
               ))}
             </div>
           )}
+
+          {/* Pot Display - smaller and tucked under the board */}
+          <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20">
+            <div className="px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-sm border border-primary/25 shadow-lg">
+              <span className="text-[7px] text-zinc-500 uppercase tracking-widest font-medium">Pot</span>
+              <p className="text-base font-black text-primary text-center leading-none">
+                {potSize}
+                <span className="ml-0.5 text-[10px] font-bold text-primary/70">bb</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero position and hand UNDER the table */}
+      <div className="shrink-0 flex flex-col items-center mt-1 mb-2">
+        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-primary/80 to-primary border border-primary/50 shadow-lg shadow-primary/30">
+          <span className="text-[10px] font-black text-primary-foreground tracking-wide">{heroPosition} (YOU)</span>
+        </div>
+        <div className="mt-2 flex items-center gap-2 p-2 rounded-xl bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-sm border border-white/10 shadow-xl">
+          <PlayingCard card={heroHand[0]} size="lg" />
+          <PlayingCard card={heroHand[1]} size="lg" />
         </div>
       </div>
 
@@ -166,13 +171,6 @@ export function PokerTable({
       <div className="shrink-0 w-full px-3 mb-2">
         <div className="bg-white/5 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-white/10">
           <p className="text-[11px] text-center text-foreground/80 leading-snug">{action}</p>
-        </div>
-      </div>
-
-      <div className="shrink-0 flex flex-col items-center">
-        <div className="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-sm border border-white/10 shadow-xl">
-          <PlayingCard card={heroHand[0]} size="lg" />
-          <PlayingCard card={heroHand[1]} size="lg" />
         </div>
       </div>
     </div>

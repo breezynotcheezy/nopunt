@@ -88,7 +88,7 @@ export function DrillScreen({
   }, [scenario]);
 
   const handleAction = (action: string, sizing?: number) => {
-    const finalAction = sizing ? `${action} ${sizing}x` : action
+    const finalAction = sizing ? `${action} ${sizing}bb` : action
     setSelectedAction(finalAction)
 
     // Use AI-determined action if available, otherwise fall back to scenario's correctAction
@@ -124,7 +124,9 @@ export function DrillScreen({
 
   const handleRaiseClick = () => {
     if (showRaiseSlider) {
-      handleAction("Raise", raiseSize)
+      const bigBlind = parseBigBlind(scenario.blinds)
+      const sizeBb = Number((raiseSize * bigBlind).toFixed(1))
+      handleAction("Raise", sizeBb)
     } else {
       setShowRaiseSlider(true)
     }
@@ -144,6 +146,16 @@ export function DrillScreen({
     setRaiseSize(2.5)
     onNext()
   }
+
+  const parseBigBlind = (blinds: string) => {
+    const parts = blinds.split("/")
+    const raw = parts[1] ?? parts[0]
+    const bb = parseFloat(raw)
+    return Number.isFinite(bb) && bb > 0 ? bb : 1
+  }
+
+  const bigBlind = parseBigBlind(scenario.blinds)
+  const currentRaiseBb = Number((raiseSize * bigBlind).toFixed(1))
 
   // Determine correct action (AI or fallback to scenario)
   const correctAction = aiAction || scenario.correctAction
@@ -207,7 +219,7 @@ export function DrillScreen({
             {showRaiseSlider && (
               <div className="bg-white/5 backdrop-blur-md rounded-xl p-3 border border-primary/30 animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-foreground shrink-0">Raise:</span>
+                  <span className="text-xs font-semibold text-foreground shrink-0">Raise</span>
                   <button
                     onClick={() => setRaiseSize(Math.max(2, raiseSize - 0.5))}
                     className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-foreground hover:bg-white/20 transition-colors active:scale-95"
@@ -226,9 +238,14 @@ export function DrillScreen({
                   >
                     <Plus className="w-4 h-4" />
                   </button>
-                  <span className="text-sm font-black text-primary min-w-[44px] text-center tabular-nums">
-                    {raiseSize.toFixed(1)}x
-                  </span>
+                  <div className="flex flex-col items-end min-w-[64px] text-right">
+                    <span className="text-sm font-black text-primary tabular-nums">
+                      {currentRaiseBb.toFixed(1)}bb
+                    </span>
+                    <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+                      {raiseSize.toFixed(1)}x
+                    </span>
+                  </div>
                 </div>
                 {/* Quick presets */}
                 <div className="flex gap-2 mt-2">
@@ -243,14 +260,28 @@ export function DrillScreen({
                           : "bg-white/10 text-muted-foreground hover:text-foreground hover:bg-white/15",
                       )}
                     >
-                      {size}x
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-xs font-bold tabular-nums">
+                          {(size * bigBlind).toFixed(1)}bb
+                        </span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {size}x
+                        </span>
+                      </div>
                     </button>
                   ))}
                   <button
                     onClick={() => handleAction("Raise", scenario.stackDepth)}
                     className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all active:scale-95"
                   >
-                    All-in
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-xs font-bold tabular-nums">
+                        {scenario.stackDepth}bb
+                      </span>
+                      <span className="text-[10px] font-semibold">
+                        All-in ({(scenario.stackDepth / bigBlind).toFixed(1)}x)
+                      </span>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -299,13 +330,26 @@ export function DrillScreen({
                     : "bg-primary/90 text-primary-foreground border-primary/60 hover:bg-primary hover:shadow-lg hover:shadow-primary/30",
                 )}
               >
-                <span className="text-sm">{showRaiseSlider ? `Raise ${raiseSize}x` : facingBet ? "Raise" : "Bet"}</span>
+                {showRaiseSlider ? (
+                  <span className="text-sm">
+                    Raise {currentRaiseBb.toFixed(1)}bb
+                    <span className="ml-1 text-[10px] align-middle text-primary-foreground/80">
+                      ({raiseSize.toFixed(1)}x)
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-sm">{facingBet ? "Raise" : "Bet"}</span>
+                )}
               </button>
             </div>
           </div>
-        ) : (
-          /* Verdict Panel */
-          <div className="animate-in slide-in-from-bottom-4 duration-300 max-h-[calc(100vh-200px)] overflow-y-auto">
+        ) : null}
+      </div>
+
+      {/* Verdict Overlay - fixed overlay outside action panel, doesn't push content */}
+      {showVerdict && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-[390px] max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
             <Card
               className={cn(
                 "p-4 border-2 rounded-xl",
@@ -365,31 +409,17 @@ export function DrillScreen({
                 </div>
               </div>
 
-              {/* AI Solution Panel */}
-              {(aiSolution || aiError || aiLoading) && (
-                <div className="mb-4">
-                  <div className="rounded-lg p-3 bg-gradient-to-br from-primary/10 to-white/5 border border-primary/20">
-                    <div className="flex items-start gap-2.5">
-                      <span className="font-bold text-primary text-xs shrink-0 mt-0.5">AI Says:</span>
-                      <div className="text-xs text-foreground/90 leading-relaxed flex-1 min-w-0">
-                        {aiLoading ? (
-                          <span className="text-muted-foreground">Analyzing hand...</span>
-                        ) : aiError ? (
-                          <span className="text-red-400 text-[10px] break-words">{aiError}</span>
-                        ) : (
-                          <span className="whitespace-pre-wrap break-words">{aiSolution}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Explanation */}
+              {/* Explanation - Shows AI solution if available, otherwise scenario explanation */}
               <div className="mb-4">
-                <p className="text-xs text-foreground/80 leading-relaxed">
-                  {aiSolution && !aiLoading && !aiError ? aiSolution : scenario.explanation}
-                </p>
+                {aiLoading ? (
+                  <div className="text-xs text-muted-foreground">Analyzing hand...</div>
+                ) : aiError ? (
+                  <div className="text-xs text-red-400 break-words">{aiError}</div>
+                ) : (
+                  <p className="text-xs text-foreground/80 leading-relaxed">
+                    {aiSolution || scenario.explanation}
+                  </p>
+                )}
               </div>
 
               {/* Range toggle */}
@@ -427,8 +457,8 @@ export function DrillScreen({
               </Button>
             </Card>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
