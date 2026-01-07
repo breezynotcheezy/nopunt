@@ -54,37 +54,29 @@ export function PokerTable({
 }: PokerTableProps) {
   return (
     <div className="flex flex-col items-center w-full h-full">
-      <div className="shrink-0 flex items-center justify-center gap-3 w-full mb-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20">
-          <span className="text-[10px] text-slate-400 font-medium">Blinds</span>
-          <span className="text-xs font-bold text-white">{blinds}</span>
+      <div className="shrink-0 flex items-center justify-center gap-2 w-full mb-2">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 backdrop-blur-sm border border-white/10">
+          <span className="text-[10px] text-muted-foreground">Blinds</span>
+          <span className="text-xs font-bold text-foreground">{blinds}</span>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-purple-500/10 backdrop-blur-sm border border-violet-500/30">
-          <span className="text-[10px] text-violet-400 font-medium">Stack</span>
-          <span className="text-xs font-bold text-violet-300">{stackDepth}bb</span>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 backdrop-blur-sm border border-white/10">
+          <span className="text-[10px] text-muted-foreground">Stack</span>
+          <span className="text-xs font-bold text-foreground">{stackDepth}bb</span>
         </div>
       </div>
 
-      <div className="flex-1 w-full flex items-center justify-center min-h-0 py-2">
-        <div className="relative w-full max-w-[340px] aspect-[1.6/1]">
-          {/* Outer shadow ring */}
-          <div className="absolute inset-0 rounded-[50%] bg-gradient-to-br from-slate-800 via-slate-900 to-black shadow-2xl" />
-          
-          {/* Outer rail - premium wood look */}
-          <div className="absolute inset-[2px] rounded-[50%] bg-gradient-to-br from-amber-900 via-amber-800 to-amber-900 shadow-inner" />
-          
+      <div className="flex-1 w-full flex items-center justify-center min-h-0 py-1">
+        <div className="relative w-full max-w-[320px] aspect-[1.6/1]">
+          {/* Outer rail - dark wood look */}
+          <div className="absolute inset-0 rounded-[50%] bg-gradient-to-b from-zinc-600 via-zinc-800 to-zinc-900 shadow-2xl" />
+
           {/* Inner rail highlight */}
-          <div className="absolute inset-[4px] rounded-[50%] bg-gradient-to-br from-amber-800 to-amber-900" />
-          
-          {/* Rail edge highlight */}
-          <div className="absolute inset-[6px] rounded-[50%] bg-gradient-to-br from-amber-700/50 to-transparent" />
-          
-          {/* Felt surface - premium poker felt */}
-          <div className="absolute inset-[8px] rounded-[50%] bg-gradient-to-br from-emerald-900 via-emerald-950 to-emerald-900 border border-amber-800/30 shadow-[inset_0_0_80px_rgba(0,0,0,0.9)]">
+          <div className="absolute inset-[3px] rounded-[50%] bg-gradient-to-b from-zinc-700 to-zinc-900" />
+
+          {/* Felt surface - deep black with subtle texture */}
+          <div className="absolute inset-[6px] rounded-[50%] bg-gradient-to-br from-zinc-900 via-black to-zinc-950 border border-zinc-700/30 shadow-[inset_0_0_60px_rgba(0,0,0,0.8)]">
             {/* Subtle center glow */}
-            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.05)_0%,transparent_70%)]" />
-            {/* Felt texture overlay */}
-            <div className="absolute inset-0 rounded-[50%] bg-gradient-to-br from-transparent via-emerald-800/10 to-emerald-900/20" />
+            <div className="absolute inset-0 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.03)_0%,transparent_60%)]" />
           </div>
 
           {players.map((player) => {
@@ -103,18 +95,18 @@ export function PokerTable({
                 {/* Player avatar */}
                 <div
                   className={cn(
-                    "relative w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold border-2 shadow-xl transition-all duration-200 hover:scale-105",
+                    "relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border-2 shadow-lg transition-all",
                     player.isFolded
-                      ? "bg-slate-800/90 border-slate-700/50 text-slate-500"
+                      ? "bg-zinc-800/90 border-zinc-700/50 text-zinc-500"
                       : player.isActive
-                        ? "bg-gradient-to-br from-violet-500/40 to-purple-500/20 border-violet-500/60 text-violet-300 shadow-violet-500/30 animate-pulse"
-                        : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600/50 text-slate-200",
+                        ? "bg-gradient-to-b from-primary/40 to-primary/20 border-primary/60 text-primary shadow-primary/20"
+                        : "bg-gradient-to-b from-zinc-700 to-zinc-800 border-zinc-600/50 text-zinc-200",
                   )}
                 >
                   {player.position}
                   {/* Dealer button */}
                   {player.isDealer && (
-                    <div className="absolute -right-1 -top-1 w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-black text-[8px] font-black flex items-center justify-center shadow-lg border border-amber-300">
+                    <div className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-white text-black text-[8px] font-black flex items-center justify-center shadow-md border border-zinc-300">
                       D
                     </div>
                   )}
@@ -122,53 +114,47 @@ export function PokerTable({
                 {/* Stack/status */}
                 <div
                   className={cn(
-                    "mt-1 px-2 py-1 rounded-lg text-[9px] font-semibold backdrop-blur-sm border",
-                    player.isFolded 
-                      ? "text-slate-600 bg-slate-900/50 border-slate-800/50" 
-                      : "bg-black/60 text-slate-300 border-white/10",
+                    "mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold",
+                    player.isFolded ? "text-zinc-600" : "bg-black/40 text-zinc-300",
                   )}
                 >
                   {player.isFolded ? "Fold" : `${player.stack}bb`}
                 </div>
                 {/* Current bet if any */}
-                {player.betAmount && player.betAmount > 0 && !player.isFolded && (
-                  <div className="mt-1 px-2 py-0.5 text-[8px] font-bold text-violet-400 bg-violet-500/20 rounded-lg border border-violet-500/30">
-                    {player.betAmount}bb
-                  </div>
+                {player.currentBet && player.currentBet > 0 && !player.isFolded && (
+                  <div className="mt-0.5 text-[8px] font-bold text-primary">{player.currentBet}bb</div>
                 )}
               </div>
             )
           })}
 
-          <div className="absolute left-1/2 bottom-[3%] -translate-x-1/2 z-20 flex flex-col items-center">
-            <div className="px-4 py-2 rounded-full bg-gradient-to-r from-violet-500/90 to-purple-600/90 border border-violet-400/50 shadow-xl shadow-violet-500/30 backdrop-blur-sm">
-              <span className="text-[10px] font-black text-white tracking-wide">{heroPosition} (YOU)</span>
+          <div className="absolute left-1/2 bottom-[2%] -translate-x-1/2 z-20 flex flex-col items-center">
+            <div className="px-3 py-1 rounded-full bg-gradient-to-r from-primary/80 to-primary border border-primary/50 shadow-lg shadow-primary/30">
+              <span className="text-[10px] font-black text-primary-foreground tracking-wide">{heroPosition} (YOU)</span>
             </div>
           </div>
 
           {/* Pot Display - centered */}
           <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-            <div className="px-4 py-2.5 rounded-2xl bg-gradient-to-br from-black/80 to-black/60 backdrop-blur-xl border border-violet-500/20 shadow-2xl">
-              <span className="text-[8px] text-slate-500 uppercase tracking-widest font-medium">Pot</span>
-              <p className="text-2xl font-black text-violet-400 text-center leading-none">
+            <div className="px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-sm border border-primary/20 shadow-lg">
+              <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-medium">Pot</span>
+              <p className="text-xl font-black text-primary text-center leading-none">
                 {potSize}
-                <span className="text-xs font-bold text-violet-500/70 ml-1">bb</span>
+                <span className="text-xs font-bold text-primary/70">bb</span>
               </p>
             </div>
           </div>
 
           {/* Community Cards - positioned above pot */}
           {board && board.length > 0 && (
-            <div className="absolute top-[25%] left-1/2 -translate-x-1/2 flex gap-1.5">
+            <div className="absolute top-[25%] left-1/2 -translate-x-1/2 flex gap-1">
               {board.map((card, i) => (
-                <div key={i} className="transform hover:scale-105 transition-transform duration-200">
-                  <PlayingCard card={card} size="sm" />
-                </div>
+                <PlayingCard key={i} card={card} size="sm" />
               ))}
               {Array.from({ length: 5 - board.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="w-8 h-11 rounded-lg border border-dashed border-slate-700/40 bg-slate-900/20"
+                  className="w-7 h-10 rounded-md border border-dashed border-zinc-700/40 bg-zinc-900/20"
                 />
               ))}
             </div>
@@ -177,14 +163,14 @@ export function PokerTable({
       </div>
 
       {/* Action Description */}
-      <div className="shrink-0 w-full px-4 mb-3">
-        <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10">
-          <p className="text-[11px] text-center text-slate-300 leading-snug font-medium">{action}</p>
+      <div className="shrink-0 w-full px-3 mb-2">
+        <div className="bg-white/5 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-white/10">
+          <p className="text-[11px] text-center text-foreground/80 leading-snug">{action}</p>
         </div>
       </div>
 
       <div className="shrink-0 flex flex-col items-center">
-        <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-xl border border-white/20 shadow-2xl">
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-sm border border-white/10 shadow-xl">
           <PlayingCard card={heroHand[0]} size="lg" />
           <PlayingCard card={heroHand[1]} size="lg" />
         </div>

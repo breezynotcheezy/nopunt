@@ -13,34 +13,34 @@ interface PlayingCardProps {
 const SuitIcon = ({ suit, className }: { suit: string; className?: string }) => {
   const icons: Record<string, React.ReactNode> = {
     h: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      <svg viewBox="0 0 32 32" className={className} fill="currentColor">
+        <path d="M16 28C16 28 4 18 4 10C4 5 8 2 12 6C14 8 16 10 16 10C16 10 18 8 20 6C24 2 28 5 28 10C28 18 16 28 16 28Z" />
       </svg>
     ),
     d: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-10 14l-5-5 1.41-1.41L9 14.17l7.59-7.59L18 8l-9 9z"/>
+      <svg viewBox="0 0 32 32" className={className} fill="currentColor">
+        <path d="M16 2L28 16L16 30L4 16L16 2Z" />
       </svg>
     ),
     s: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>
+      <svg viewBox="0 0 32 32" className={className} fill="currentColor">
+        <path d="M16 2C16 2 4 12 4 20C4 26 8 28 12 24C14 22 16 20 16 20C16 20 16 26 16 28L14 28L14 30L18 30L18 28L16 28C16 26 16 20 16 20C16 20 18 22 20 24C24 28 28 26 28 20C28 12 16 2 16 2Z" />
       </svg>
     ),
     c: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      <svg viewBox="0 0 32 32" className={className} fill="currentColor">
+        <path d="M16 6C18.5 6 20.5 8 20.5 10.5C20.5 12 19.8 13.3 18.7 14C20.8 14.3 22.5 16 22.5 18.5C22.5 21 20.5 23 18 23C17.2 23 16.5 22.8 16 22.5C16 22.5 16 26 16 28L14 28L14 30L18 30L18 28L16 28C16 26 16 22.5 16 22.5C15.5 22.8 14.8 23 14 23C11.5 23 9.5 21 9.5 18.5C9.5 16 11.2 14.3 13.3 14C12.2 13.3 11.5 12 11.5 10.5C11.5 8 13.5 6 16 6Z" />
       </svg>
     ),
   }
   return <>{icons[suit] || null}</>
 }
 
-const suitColors: Record<string, { text: string; bg: string }> = {
-  h: { text: "text-red-500", bg: "bg-red-50" },
-  d: { text: "text-red-500", bg: "bg-red-50" },
-  s: { text: "text-gray-900", bg: "bg-gray-50" },
-  c: { text: "text-gray-900", bg: "bg-gray-50" },
+const suitColors: Record<string, { text: string; glow: string }> = {
+  h: { text: "text-rose-500", glow: "drop-shadow-[0_0_6px_rgba(244,63,94,0.4)]" },
+  d: { text: "text-rose-500", glow: "drop-shadow-[0_0_6px_rgba(244,63,94,0.4)]" },
+  s: { text: "text-zinc-800", glow: "" },
+  c: { text: "text-zinc-800", glow: "" },
 }
 
 const suitSymbols: Record<string, string> = {
@@ -53,7 +53,7 @@ const suitSymbols: Record<string, string> = {
 export function PlayingCard({ card, size = "md", className }: PlayingCardProps) {
   const rank = card.slice(0, -1)
   const suit = card.slice(-1).toLowerCase()
-  const colors = suitColors[suit] || { text: "text-gray-900", bg: "bg-gray-50" }
+  const colors = suitColors[suit] || { text: "text-zinc-800", glow: "" }
   const suitSymbol = suitSymbols[suit] || suit
 
   const sizeClasses = {
@@ -75,35 +75,37 @@ export function PlayingCard({ card, size = "md", className }: PlayingCardProps) 
   return (
     <div
       className={cn(
-        "relative bg-white border border-gray-300 rounded-lg shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105",
+        "relative rounded-lg overflow-hidden",
+        "bg-gradient-to-br from-white via-gray-50 to-gray-100",
+        "border border-gray-300/60",
+        "shadow-[0_2px_12px_rgba(0,0,0,0.15)]",
         sizeClasses[size],
         className,
       )}
     >
-      {/* Card background pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="w-full h-full" style={{
-          backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)`,
-        }} />
-      </div>
-      
+      {/* Card shine effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-transparent" />
+
       {/* Top left corner */}
-      <div className="absolute top-2 left-2 flex flex-col items-center leading-none z-10">
-        <span className={cn("font-bold", fontSizes[size].rank, colors.text)}>{rank}</span>
-        <span className={cn("font-semibold", fontSizes[size].suit, colors.text)}>{suitSymbol}</span>
+      <div className={cn("absolute top-0.5 left-1 flex flex-col items-center leading-none z-10", colors.text)}>
+        <span className={cn("font-black", fontSizes[size].rank)}>{rank}</span>
+        <span className={cn("font-bold -mt-0.5", fontSizes[size].suit)}>{suitSymbol}</span>
       </div>
 
       {/* Center suit icon */}
-      <div className={cn("absolute inset-0 flex items-center justify-center z-10", colors.text)}>
-        <div className={cn(colors.bg, "rounded-full p-2", size === "lg" ? "p-3" : size === "xl" ? "p-4" : "p-2")}>
-          <SuitIcon suit={suit} className={cn(fontSizes[size].center)} />
-        </div>
+      <div className={cn("absolute inset-0 flex items-center justify-center z-10", colors.text, colors.glow)}>
+        <SuitIcon suit={suit} className={cn(fontSizes[size].center)} />
       </div>
 
       {/* Bottom right corner (rotated) */}
-      <div className="absolute bottom-2 right-2 flex flex-col items-center leading-none z-10 rotate-180">
-        <span className={cn("font-bold", fontSizes[size].rank, colors.text)}>{rank}</span>
-        <span className={cn("font-semibold", fontSizes[size].suit, colors.text)}>{suitSymbol}</span>
+      <div
+        className={cn(
+          "absolute bottom-0.5 right-1 flex flex-col items-center leading-none z-10 rotate-180",
+          colors.text,
+        )}
+      >
+        <span className={cn("font-black", fontSizes[size].rank)}>{rank}</span>
+        <span className={cn("font-bold -mt-0.5", fontSizes[size].suit)}>{suitSymbol}</span>
       </div>
     </div>
   )
