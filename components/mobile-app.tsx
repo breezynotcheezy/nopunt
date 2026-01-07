@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { HomeScreen } from "./screens/home-screen"
 import { DrillScreen } from "./screens/drill-screen"
 import { ReviewScreen } from "./screens/review-screen"
@@ -8,7 +8,8 @@ import { LeaksScreen } from "./screens/leaks-screen"
 import { SessionSummaryScreen } from "./screens/session-summary-screen"
 import { ProfileScreen } from "./screens/profile-screen"
 import { BottomNav } from "./ui/bottom-nav"
-import { mockUserStats, mockScenarios, mockMistakes, type UserStats, type Mistake } from "@/lib/mock-data"
+import { mockUserStats, mockScenarios, mockMistakes, type UserStats, type Mistake, type HandScenario } from "@/lib/mock-data"
+import { generateRandomHandScenario } from "@/lib/hand-generator"
 
 export type Screen = "home" | "drill" | "review" | "leaks" | "summary" | "profile"
 
@@ -19,6 +20,11 @@ export function MobileApp() {
   const [sessionMistakes, setSessionMistakes] = useState<Mistake[]>([])
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [drillType, setDrillType] = useState<"daily" | "weakness">("daily")
+  
+  // Generate random hands for daily training
+  const randomHands = useMemo(() => {
+    return Array.from({ length: 10 }, (_, i) => generateRandomHandScenario(`random-${i + 1}`))
+  }, [currentScreen === "home"]) // Regenerate when returning to home
 
   const startDrill = (type: "daily" | "weakness" = "daily") => {
     setDrillType(type)
@@ -57,9 +63,14 @@ export function MobileApp() {
           <HomeScreen userStats={userStats} onStartDrill={() => startDrill("daily")} onNavigate={setCurrentScreen} />
         )
       case "drill":
+        // Use random hands for daily training, mockScenarios for weakness drills
+        const scenario: HandScenario = drillType === "daily" 
+          ? randomHands[currentHandIndex]
+          : mockScenarios[currentHandIndex % mockScenarios.length]
+        
         return (
           <DrillScreen
-            scenario={mockScenarios[currentHandIndex % mockScenarios.length]}
+            scenario={scenario}
             handNumber={currentHandIndex + 1}
             totalHands={10}
             drillType={drillType}

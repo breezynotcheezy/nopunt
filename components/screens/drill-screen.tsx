@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, Bookmark, ChevronDown, Eye, Minus, Plus, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -34,14 +34,76 @@ export function DrillScreen({
   const [bookmarked, setBookmarked] = useState(false)
   const [raiseSize, setRaiseSize] = useState(2.5)
   const [showRaiseSlider, setShowRaiseSlider] = useState(false)
+  const [aiSolution, setAiSolution] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiAction, setAiAction] = useState<string | null>(null)
+  const [aiSizing, setAiSizing] = useState<number | null>(null)
+  const [aiEv, setAiEv] = useState<number>(0)
+
+  // Fetch AI solution whenever scenario changes
+  useEffect(() => {
+    let cancelled = false;
+    setAiSolution(null);
+    setAiError(null);
+    setAiLoading(true);
+    setAiAction(null);
+    setAiSizing(null);
+    setAiEv(0);
+    
+    fetch('/api/solver', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scenario),
+    })
+      .then(async res => {
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!cancelled) {
+          if (data.error) {
+            setAiError(data.error);
+          } else {
+            setAiSolution(data.solution || 'No solution available');
+            setAiAction(data.action || null);
+            setAiSizing(data.sizing || null);
+            setAiEv(data.ev || 0);
+          }
+          setAiLoading(false);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setAiError(err.message || 'Error contacting AI solver');
+          setAiLoading(false);
+        }
+      });
+    
+    return () => { cancelled = true; };
+  }, [scenario]);
 
   const handleAction = (action: string, sizing?: number) => {
     const finalAction = sizing ? `${action} ${sizing}x` : action
     setSelectedAction(finalAction)
 
+    // Use AI-determined action if available, otherwise fall back to scenario's correctAction
+    const correctAction = aiAction || scenario.correctAction
+    
+    // Normalize actions for comparison
+    const userActionNormalized = action.toLowerCase();
+    const correctActionNormalized = correctAction.toLowerCase();
+    
+    // Handle action equivalencies (bet/raise are similar)
     const isCorrect =
-      action.toLowerCase() === scenario.correctAction ||
-      (action.toLowerCase() === "bet" && scenario.correctAction === "raise")
+      userActionNormalized === correctActionNormalized ||
+      (userActionNormalized === "bet" && correctActionNormalized === "raise") ||
+      (userActionNormalized === "raise" && correctActionNormalized === "bet") ||
+      (userActionNormalized === "raise" && correctActionNormalized === "raise")
 
     onDecision(
       isCorrect,
@@ -83,13 +145,17 @@ export function DrillScreen({
     onNext()
   }
 
-  const isCorrect = selectedAction?.toLowerCase().startsWith(scenario.correctAction)
+  // Determine correct action (AI or fallback to scenario)
+  const correctAction = aiAction || scenario.correctAction
+  const correctSizing = aiSizing || scenario.correctSizing
+  const correctEv = aiEv !== 0 ? aiEv : scenario.evDelta
+  
+  const isCorrect = selectedAction?.toLowerCase().startsWith(correctAction.toLowerCase())
   const verdictType = isCorrect ? "correct" : Math.random() > 0.5 ? "mistake" : "punt"
 
-  const facingBet =
-    scenario.action.toLowerCase().includes("bet") ||
-    scenario.action.toLowerCase().includes("raise") ||
-    scenario.action.toLowerCase().includes("opens")
+  // Determine if facing a bet based on ACTUAL player state, not action string
+  const activeOpponent = scenario.players.find(p => p.isActive && !p.isFolded);
+  const facingBet = activeOpponent?.betAmount !== undefined && activeOpponent.betAmount > 0
 
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
@@ -191,19 +257,21 @@ export function DrillScreen({
             )}
 
             {/* Main Action Buttons */}
-            <div className="grid grid-cols-3 gap-3">
-              {/* Fold/Cancel */}
-              <button
-                onClick={showRaiseSlider ? handleCancelRaise : () => handleAction("Fold")}
-                className={cn(
-                  "h-14 flex flex-col items-center justify-center rounded-xl border-2 font-semibold transition-all active:scale-[0.97]",
-                  showRaiseSlider
-                    ? "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
-                    : "bg-zinc-800/90 border-zinc-700/60 text-zinc-300 hover:bg-zinc-700/90 hover:border-zinc-600",
-                )}
-              >
-                <span className="text-sm">{showRaiseSlider ? "Cancel" : "Fold"}</span>
-              </button>
+            <div className={cn("grid gap-3", facingBet ? "grid-cols-3" : "grid-cols-2")}>
+              {/* Fold/Cancel - Only show if facing a bet */}
+              {facingBet && (
+                <button
+                  onClick={showRaiseSlider ? handleCancelRaise : () => handleAction("Fold")}
+                  className={cn(
+                    "h-14 flex flex-col items-center justify-center rounded-xl border-2 font-semibold transition-all active:scale-[0.97]",
+                    showRaiseSlider
+                      ? "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
+                      : "bg-zinc-800/90 border-zinc-700/60 text-zinc-300 hover:bg-zinc-700/90 hover:border-zinc-600",
+                  )}
+                >
+                  <span className="text-sm">{showRaiseSlider ? "Cancel" : "Fold"}</span>
+                </button>
+              )}
 
               {/* Check/Call */}
               <button
@@ -213,7 +281,9 @@ export function DrillScreen({
                   "h-14 flex flex-col items-center justify-center rounded-xl border-2 font-semibold transition-all active:scale-[0.97]",
                   showRaiseSlider
                     ? "bg-white/5 border-white/5 text-muted-foreground/40 cursor-not-allowed"
-                    : "bg-white/10 border-white/20 text-foreground hover:bg-white/15 hover:border-white/30",
+                    : facingBet
+                      ? "bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30 hover:border-blue-500/60"
+                      : "bg-white/10 border-white/20 text-foreground hover:bg-white/15 hover:border-white/30",
                 )}
               >
                 <span className="text-sm">{facingBet ? "Call" : "Check"}</span>
@@ -235,21 +305,21 @@ export function DrillScreen({
           </div>
         ) : (
           /* Verdict Panel */
-          <div className="animate-in slide-in-from-bottom-4 duration-300">
+          <div className="animate-in slide-in-from-bottom-4 duration-300 max-h-[calc(100vh-200px)] overflow-y-auto">
             <Card
               className={cn(
-                "p-3 border-2 rounded-xl",
+                "p-4 border-2 rounded-xl",
                 isCorrect
                   ? "border-primary/60 bg-gradient-to-b from-primary/20 to-primary/5"
                   : "border-red-500/60 bg-gradient-to-b from-red-500/20 to-red-500/5",
               )}
             >
               {/* Verdict Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div
                     className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg",
+                      "w-10 h-10 rounded-full flex items-center justify-center text-base font-bold shadow-lg shrink-0",
                       isCorrect
                         ? "bg-primary text-primary-foreground shadow-primary/40"
                         : "bg-red-500 text-white shadow-red-500/40",
@@ -257,20 +327,20 @@ export function DrillScreen({
                   >
                     {isCorrect ? "✓" : "✗"}
                   </div>
-                  <div>
-                    <p className={cn("text-base font-bold leading-none", isCorrect ? "text-primary" : "text-red-400")}>
+                  <div className="min-w-0">
+                    <p className={cn("text-lg font-bold leading-tight mb-0.5", isCorrect ? "text-primary" : "text-red-400")}>
                       {verdictType === "correct" ? "Correct!" : verdictType === "mistake" ? "Mistake" : "Punt!"}
                     </p>
-                    <span className={cn("text-xs font-semibold", isCorrect ? "text-primary/80" : "text-red-400/80")}>
-                      EV: {isCorrect ? "+" : ""}
-                      {scenario.evDelta.toFixed(1)}bb
+                    <span className={cn("text-xs font-semibold block", isCorrect ? "text-primary/80" : "text-red-400/80")}>
+                      EV: {correctEv >= 0 ? "+" : ""}
+                      {correctEv.toFixed(1)}bb
                     </span>
                   </div>
                 </div>
                 <button
                   onClick={() => setBookmarked(!bookmarked)}
                   className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                    "w-9 h-9 rounded-lg flex items-center justify-center transition-all shrink-0",
                     bookmarked
                       ? "bg-primary/20 text-primary"
                       : "bg-white/10 text-muted-foreground hover:text-foreground",
@@ -281,41 +351,65 @@ export function DrillScreen({
               </div>
 
               {/* Actions comparison */}
-              <div className="flex gap-2 mb-3">
-                <div className="flex-1 px-3 py-2 rounded-lg bg-white/5">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Action</span>
-                  <p className="text-sm font-bold text-foreground">{selectedAction}</p>
+              <div className="flex gap-2.5 mb-4">
+                <div className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 min-w-0">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Your Action</span>
+                  <p className="text-sm font-bold text-foreground truncate">{selectedAction}</p>
                 </div>
-                <div className="flex-1 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Optimal</span>
-                  <p className="text-sm font-bold text-primary capitalize">
-                    {scenario.correctAction}
-                    {scenario.correctSizing ? ` ${scenario.correctSizing}bb` : ""}
+                <div className="flex-1 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/20 min-w-0">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Optimal</span>
+                  <p className="text-sm font-bold text-primary capitalize truncate">
+                    {correctAction}
+                    {correctSizing ? ` ${correctSizing}bb` : ""}
                   </p>
                 </div>
               </div>
 
+              {/* AI Solution Panel */}
+              {(aiSolution || aiError || aiLoading) && (
+                <div className="mb-4">
+                  <div className="rounded-lg p-3 bg-gradient-to-br from-primary/10 to-white/5 border border-primary/20">
+                    <div className="flex items-start gap-2.5">
+                      <span className="font-bold text-primary text-xs shrink-0 mt-0.5">AI Says:</span>
+                      <div className="text-xs text-foreground/90 leading-relaxed flex-1 min-w-0">
+                        {aiLoading ? (
+                          <span className="text-muted-foreground">Analyzing hand...</span>
+                        ) : aiError ? (
+                          <span className="text-red-400 text-[10px] break-words">{aiError}</span>
+                        ) : (
+                          <span className="whitespace-pre-wrap break-words">{aiSolution}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Explanation */}
-              <p className="text-xs text-foreground/80 leading-relaxed mb-3">{scenario.explanation}</p>
+              <div className="mb-4">
+                <p className="text-xs text-foreground/80 leading-relaxed">
+                  {aiSolution && !aiLoading && !aiError ? aiSolution : scenario.explanation}
+                </p>
+              </div>
 
               {/* Range toggle */}
               <button
                 onClick={() => setShowRange(!showRange)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3 w-full"
               >
-                <Eye className="w-3.5 h-3.5" />
+                <Eye className="w-3.5 h-3.5 shrink-0" />
                 <span>{showRange ? "Hide" : "View"} Range</span>
-                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showRange && "rotate-180")} />
+                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform ml-auto", showRange && "rotate-180")} />
               </button>
 
               {showRange && (
-                <div className="bg-white/5 rounded-lg p-2 mb-3 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-13 gap-px">
+                <div className="bg-white/5 rounded-lg p-2.5 mb-4 animate-in fade-in duration-150 overflow-x-auto">
+                  <div className="grid grid-cols-13 gap-px min-w-max">
                     {Array.from({ length: 13 * 13 }).map((_, i) => (
                       <div
                         key={i}
                         className={cn(
-                          "aspect-square rounded-sm",
+                          "aspect-square rounded-sm w-3 h-3",
                           Math.random() > 0.65 ? "bg-primary/70" : "bg-white/10",
                         )}
                       />
@@ -327,7 +421,7 @@ export function DrillScreen({
               {/* Next Button */}
               <Button
                 onClick={handleNext}
-                className="w-full h-11 font-bold bg-primary text-primary-foreground rounded-xl text-sm hover:bg-primary/90 shadow-lg shadow-primary/30"
+                className="w-full h-12 font-bold bg-primary text-primary-foreground rounded-xl text-sm hover:bg-primary/90 shadow-lg shadow-primary/30 mt-2"
               >
                 Next Hand
               </Button>
