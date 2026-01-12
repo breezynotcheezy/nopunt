@@ -40,6 +40,12 @@ export interface HandScenario {
   players: Player[]
 }
 
+// A full hand composed of ordered decision nodes across streets (preflop → flop → turn → river)
+export interface MultiStreetHand {
+  id: string
+  steps: HandScenario[]
+}
+
 export interface Leak {
   id: string
   category: string

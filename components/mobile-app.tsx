@@ -8,8 +8,8 @@ import { LeaksScreen } from "./screens/leaks-screen"
 import { SessionSummaryScreen } from "./screens/session-summary-screen"
 import { ProfileScreen } from "./screens/profile-screen"
 import { BottomNav } from "./ui/bottom-nav"
-import { mockUserStats, mockScenarios, mockMistakes, type UserStats, type Mistake, type HandScenario } from "@/lib/mock-data"
-import { generateRandomHandScenario } from "@/lib/hand-generator"
+import { mockUserStats, mockScenarios, mockMistakes, type UserStats, type Mistake, type HandScenario, type MultiStreetHand } from "@/lib/mock-data"
+import { generateRandomMultiStreetHand } from "@/lib/hand-generator"
 
 export type Screen = "home" | "drill" | "review" | "leaks" | "summary" | "profile"
 
@@ -21,9 +21,9 @@ export function MobileApp() {
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [drillType, setDrillType] = useState<"daily" | "weakness">("daily")
   
-  // Generate random hands for daily training
-  const randomHands = useMemo(() => {
-    return Array.from({ length: 10 }, (_, i) => generateRandomHandScenario(`random-${i + 1}`))
+  // Generate random multi-street hands for daily training
+  const randomHands: MultiStreetHand[] = useMemo(() => {
+    return Array.from({ length: 10 }, (_, i) => generateRandomMultiStreetHand(`random-${i + 1}`))
   }, [currentScreen === "home"]) // Regenerate when returning to home
 
   const startDrill = (type: "daily" | "weakness" = "daily") => {
@@ -63,14 +63,16 @@ export function MobileApp() {
           <HomeScreen userStats={userStats} onStartDrill={() => startDrill("daily")} onNavigate={setCurrentScreen} />
         )
       case "drill":
-        // Use random hands for daily training, mockScenarios for weakness drills
-        const scenario: HandScenario = drillType === "daily" 
+        // Use random multi-street hands for daily training,
+        // and wrap mockScenarios as single-step hands for weakness drills.
+        const weaknessHands: MultiStreetHand[] = mockScenarios.map((s) => ({ id: s.id, steps: [s] }))
+        const hand: MultiStreetHand = drillType === "daily"
           ? randomHands[currentHandIndex]
-          : mockScenarios[currentHandIndex % mockScenarios.length]
-        
+          : weaknessHands[currentHandIndex % weaknessHands.length]
+
         return (
           <DrillScreen
-            scenario={scenario}
+            hand={hand}
             handNumber={currentHandIndex + 1}
             totalHands={10}
             drillType={drillType}

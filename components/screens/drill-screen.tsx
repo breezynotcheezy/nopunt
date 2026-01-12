@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { PokerTable } from "@/components/ui/poker-table"
-import type { HandScenario, Mistake } from "@/lib/mock-data"
+import type { HandScenario, Mistake, MultiStreetHand } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
 interface DrillScreenProps {
-  scenario: HandScenario
+  hand: MultiStreetHand
   handNumber: number
   totalHands: number
   drillType: "daily" | "weakness"
@@ -20,7 +20,7 @@ interface DrillScreenProps {
 }
 
 export function DrillScreen({
-  scenario,
+  hand,
   handNumber,
   totalHands,
   drillType,
@@ -28,6 +28,9 @@ export function DrillScreen({
   onNext,
   onExit,
 }: DrillScreenProps) {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const currentScenario: HandScenario = hand.steps[currentStepIndex]
+
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [showVerdict, setShowVerdict] = useState(false)
   const [showRange, setShowRange] = useState(false)
@@ -40,8 +43,36 @@ export function DrillScreen({
   const [aiAction, setAiAction] = useState<string | null>(null)
   const [aiSizing, setAiSizing] = useState<number | null>(null)
   const [aiEv, setAiEv] = useState<number>(0)
+  const [heroVisualAction, setHeroVisualAction] = useState<string | null>(null)
+  const [heroVisualSize, setHeroVisualSize] = useState<number | null>(null)
 
-  // Fetch AI solution whenever scenario changes
+  type StepResult = {
+    street: HandScenario["street"]
+    userAction: string
+    optimalAction: string
+    optimalSizing: number | null
+    ev: number
+    explanation: string
+    correct: boolean
+  }
+
+  const [stepResults, setStepResults] = useState<StepResult[]>([])
+
+  // Reset when a new hand starts
+  useEffect(() => {
+    setCurrentStepIndex(0)
+    setStepResults([])
+    setSelectedAction(null)
+    setShowVerdict(false)
+    setShowRange(false)
+    setBookmarked(false)
+    setShowRaiseSlider(false)
+    setRaiseSize(2.5)
+    setHeroVisualAction(null)
+    setHeroVisualSize(null)
+  }, [hand.id])
+
+  // Fetch AI solution whenever the current scenario (street) changes
   useEffect(() => {
     let cancelled = false;
     setAiSolution(null);
@@ -54,7 +85,7 @@ export function DrillScreen({
     fetch('/api/solver', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scenario),
+      body: JSON.stringify(currentScenario),
     })
       .then(async res => {
         const contentType = res.headers.get('content-type');
@@ -85,14 +116,16 @@ export function DrillScreen({
       });
     
     return () => { cancelled = true; };
-  }, [scenario]);
+  }, [currentScenario]);
 
   const handleAction = (action: string, sizing?: number) => {
     const finalAction = sizing ? `${action} ${sizing}bb` : action
+    setHeroVisualAction(action.toLowerCase())
+    setHeroVisualSize(sizing ?? null)
     setSelectedAction(finalAction)
 
     // Use AI-determined action if available, otherwise fall back to scenario's correctAction
-    const correctAction = aiAction || scenario.correctAction
+    const correctAction = aiAction || currentScenario.correctAction
     
     // Normalize actions for comparison
     const userActionNormalized = action.toLowerCase();
@@ -105,28 +138,58 @@ export function DrillScreen({
       (userActionNormalized === "raise" && correctActionNormalized === "bet") ||
       (userActionNormalized === "raise" && correctActionNormalized === "raise")
 
-    onDecision(
-      isCorrect,
-      isCorrect
-        ? undefined
-        : {
-            id: scenario.id,
-            category: scenario.category,
-            hand: scenario,
-            userAction: finalAction,
-            timestamp: new Date(),
-          },
-    )
+    // Record per-street result and compute updated results array
+    const nextResults: StepResult[] = [...stepResults]
+    nextResults[currentStepIndex] = {
+      street: currentScenario.street,
+      userAction: finalAction,
+      optimalAction: correctAction,
+      optimalSizing: correctSizing ?? null,
+      ev: correctEv,
+      explanation: aiSolution || currentScenario.explanation,
+      correct: isCorrect,
+    }
+    setStepResults(nextResults)
 
-    setShowRaiseSlider(false)
-    setTimeout(() => setShowVerdict(true), 200)
+    // If the user folds at any point, the hand is over immediately.
+    const foldedEarly = userActionNormalized === "fold"
+    const isLastStep = foldedEarly || currentStepIndex >= hand.steps.length - 1
+
+    if (isLastStep) {
+      // At the end of the hand, surface the reflection overlay
+      const allCorrect = nextResults.every((r) => r?.correct)
+      onDecision(
+        allCorrect,
+        allCorrect
+          ? undefined
+          : {
+              id: currentScenario.id,
+              category: currentScenario.category,
+              hand: currentScenario,
+              userAction: finalAction,
+              timestamp: new Date(),
+            },
+      )
+
+      setShowRaiseSlider(false)
+      setTimeout(() => setShowVerdict(true), 200)
+    } else {
+      // Allow animations (hero/villain bets & checks) to play before
+      // transitioning to the next street.
+      setShowRaiseSlider(false)
+      setTimeout(() => {
+        setRaiseSize(2.5)
+        setHeroVisualAction(null)
+        setHeroVisualSize(null)
+        setSelectedAction(null)
+        setCurrentStepIndex((prev) => prev + 1)
+      }, 600)
+    }
   }
 
   const handleRaiseClick = () => {
     if (showRaiseSlider) {
-      const bigBlind = parseBigBlind(scenario.blinds)
-      const sizeBb = Number((raiseSize * bigBlind).toFixed(1))
-      handleAction("Raise", sizeBb)
+      handleAction(facingBet ? "Raise" : "Bet", raiseSize)
     } else {
       setShowRaiseSlider(true)
     }
@@ -144,30 +207,22 @@ export function DrillScreen({
     setBookmarked(false)
     setShowRaiseSlider(false)
     setRaiseSize(2.5)
+    setHeroVisualAction(null)
+    setHeroVisualSize(null)
+    setCurrentStepIndex(0)
+    setStepResults([])
     onNext()
   }
 
-  const parseBigBlind = (blinds: string) => {
-    const parts = blinds.split("/")
-    const raw = parts[1] ?? parts[0]
-    const bb = parseFloat(raw)
-    return Number.isFinite(bb) && bb > 0 ? bb : 1
-  }
-
-  const bigBlind = parseBigBlind(scenario.blinds)
-  const currentRaiseBb = Number((raiseSize * bigBlind).toFixed(1))
-
   // Determine correct action (AI or fallback to scenario)
-  const correctAction = aiAction || scenario.correctAction
-  const correctSizing = aiSizing || scenario.correctSizing
-  const correctEv = aiEv !== 0 ? aiEv : scenario.evDelta
+  const correctAction = aiAction || currentScenario.correctAction
+  const correctSizing = aiSizing || currentScenario.correctSizing
+  const correctEv = aiEv !== 0 ? aiEv : currentScenario.evDelta
+  const activeOpponent = currentScenario.players.find(p => p.isActive && !p.isFolded)
+  const facingBet = activeOpponent?.betAmount !== undefined && activeOpponent.betAmount > 0
   
   const isCorrect = selectedAction?.toLowerCase().startsWith(correctAction.toLowerCase())
   const verdictType = isCorrect ? "correct" : Math.random() > 0.5 ? "mistake" : "punt"
-
-  // Determine if facing a bet based on ACTUAL player state, not action string
-  const activeOpponent = scenario.players.find(p => p.isActive && !p.isFolded);
-  const facingBet = activeOpponent?.betAmount !== undefined && activeOpponent.betAmount > 0
 
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
@@ -200,14 +255,16 @@ export function DrillScreen({
       {/* Poker Table - takes available space */}
       <div className="flex-1 min-h-0 px-2">
         <PokerTable
-          heroPosition={scenario.position}
-          heroHand={scenario.heroHand}
-          board={scenario.board}
-          potSize={scenario.potSize}
-          action={scenario.action}
-          stackDepth={scenario.stackDepth}
-          blinds={scenario.blinds}
-          players={scenario.players}
+          heroPosition={currentScenario.position}
+          heroHand={currentScenario.heroHand}
+          board={currentScenario.board}
+          potSize={currentScenario.potSize}
+          action={currentScenario.action}
+          stackDepth={currentScenario.stackDepth}
+          blinds={currentScenario.blinds}
+          players={currentScenario.players}
+          heroAction={heroVisualAction as any}
+          heroActionSizeBb={heroVisualSize}
         />
       </div>
 
@@ -219,7 +276,7 @@ export function DrillScreen({
             {showRaiseSlider && (
               <div className="bg-white/5 backdrop-blur-md rounded-xl p-3 border border-primary/30 animate-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-foreground shrink-0">Raise</span>
+                  <span className="text-xs font-semibold text-foreground shrink-0">{facingBet ? "Raise:" : "Bet:"}</span>
                   <button
                     onClick={() => setRaiseSize(Math.max(2, raiseSize - 0.5))}
                     className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-foreground hover:bg-white/20 transition-colors active:scale-95"
@@ -238,14 +295,9 @@ export function DrillScreen({
                   >
                     <Plus className="w-4 h-4" />
                   </button>
-                  <div className="flex flex-col items-end min-w-[64px] text-right">
-                    <span className="text-sm font-black text-primary tabular-nums">
-                      {currentRaiseBb.toFixed(1)}bb
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
-                      {raiseSize.toFixed(1)}x
-                    </span>
-                  </div>
+                  <span className="text-sm font-black text-primary min-w-[44px] text-center tabular-nums">
+                    {raiseSize.toFixed(1)}x
+                  </span>
                 </div>
                 {/* Quick presets */}
                 <div className="flex gap-2 mt-2">
@@ -260,28 +312,14 @@ export function DrillScreen({
                           : "bg-white/10 text-muted-foreground hover:text-foreground hover:bg-white/15",
                       )}
                     >
-                      <div className="flex flex-col leading-tight">
-                        <span className="text-xs font-bold tabular-nums">
-                          {(size * bigBlind).toFixed(1)}bb
-                        </span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">
-                          {size}x
-                        </span>
-                      </div>
+                      {size}x
                     </button>
                   ))}
                   <button
-                    onClick={() => handleAction("Raise", scenario.stackDepth)}
+                    onClick={() => handleAction(facingBet ? "Raise" : "Bet", currentScenario.stackDepth)}
                     className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all active:scale-95"
                   >
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-xs font-bold tabular-nums">
-                        {scenario.stackDepth}bb
-                      </span>
-                      <span className="text-[10px] font-semibold">
-                        All-in ({(scenario.stackDepth / bigBlind).toFixed(1)}x)
-                      </span>
-                    </div>
+                    All-in
                   </button>
                 </div>
               </div>
@@ -330,16 +368,13 @@ export function DrillScreen({
                     : "bg-primary/90 text-primary-foreground border-primary/60 hover:bg-primary hover:shadow-lg hover:shadow-primary/30",
                 )}
               >
-                {showRaiseSlider ? (
-                  <span className="text-sm">
-                    Raise {currentRaiseBb.toFixed(1)}bb
-                    <span className="ml-1 text-[10px] align-middle text-primary-foreground/80">
-                      ({raiseSize.toFixed(1)}x)
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-sm">{facingBet ? "Raise" : "Bet"}</span>
-                )}
+                <span className="text-sm">
+                  {showRaiseSlider
+                    ? `${facingBet ? "Raise" : "Bet"} ${raiseSize}x`
+                    : facingBet
+                      ? "Raise"
+                      : "Bet"}
+                </span>
               </button>
             </div>
           </div>
@@ -394,32 +429,60 @@ export function DrillScreen({
                 </button>
               </div>
 
-              {/* Actions comparison */}
-              <div className="flex gap-2.5 mb-4">
-                <div className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 min-w-0">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Your Action</span>
-                  <p className="text-sm font-bold text-foreground truncate">{selectedAction}</p>
-                </div>
-                <div className="flex-1 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/20 min-w-0">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Optimal</span>
-                  <p className="text-sm font-bold text-primary capitalize truncate">
-                    {correctAction}
-                    {correctSizing ? ` ${correctSizing}bb` : ""}
-                  </p>
-                </div>
-              </div>
-
-              {/* Explanation - Shows AI solution if available, otherwise scenario explanation */}
-              <div className="mb-4">
-                {aiLoading ? (
-                  <div className="text-xs text-muted-foreground">Analyzing hand...</div>
-                ) : aiError ? (
-                  <div className="text-xs text-red-400 break-words">{aiError}</div>
-                ) : (
-                  <p className="text-xs text-foreground/80 leading-relaxed">
-                    {aiSolution || scenario.explanation}
-                  </p>
-                )}
+              {/* Multi-step reflection: each street's decision */}
+              <div className="mb-4 space-y-2">
+                {hand.steps.map((step, index) => {
+                  const res = stepResults[index]
+                  const isThisStep = index === currentStepIndex
+                  return (
+                    <div
+                      key={step.id}
+                      className={cn(
+                        "px-3 py-2.5 rounded-lg border flex flex-col gap-1",
+                        res?.correct
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-red-500/40 bg-red-500/5",
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {step.street.toUpperCase()}
+                        </span>
+                        {res && (
+                          <span className="text-[10px] font-semibold text-foreground/80">
+                            {res.correct ? "Optimal" : "Off-plan"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex text-[11px] gap-3">
+                        <div className="flex-1 min-w-0">
+                          <span className="block text-[10px] text-muted-foreground uppercase tracking-wider">You</span>
+                          <span className="block font-semibold truncate">{res?.userAction ?? "(no action)"}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="block text-[10px] text-muted-foreground uppercase tracking-wider">Optimal</span>
+                          <span className="block font-semibold text-primary truncate">
+                            {res?.optimalAction ?? "-"}
+                            {res?.optimalSizing ? ` ${res.optimalSizing}bb` : ""}
+                          </span>
+                        </div>
+                        <div className="w-[70px] text-right">
+                          <span className="block text-[10px] text-muted-foreground uppercase tracking-wider">EV</span>
+                          <span className="block text-[11px] font-semibold">
+                            {res
+                              ? `${res.ev >= 0 ? "+" : ""}${res.ev.toFixed(1)}bb`
+                              : "--"}
+                          </span>
+                        </div>
+                      </div>
+                      {res && (
+                        <p className="mt-1 text-[10px] text-foreground/80 leading-snug">
+                          {res.explanation}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Range toggle */}
