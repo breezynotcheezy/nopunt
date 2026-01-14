@@ -8,7 +8,7 @@ import { LeaksScreen } from "./screens/leaks-screen"
 import { SessionSummaryScreen } from "./screens/session-summary-screen"
 import { ProfileScreen } from "./screens/profile-screen"
 import { BottomNav } from "./ui/bottom-nav"
-import { mockUserStats, mockScenarios, mockMistakes, type UserStats, type Mistake, type HandScenario, type MultiStreetHand } from "@/lib/mock-data"
+import { mockUserStats, mockScenarios, mockMistakes, mockLeaks, type UserStats, type Mistake, type MultiStreetHand, type Leak } from "@/lib/mock-data"
 import { generateRandomMultiStreetHand } from "@/lib/hand-generator"
 
 export type Screen = "home" | "drill" | "review" | "leaks" | "summary" | "profile"
@@ -20,6 +20,8 @@ export function MobileApp() {
   const [sessionMistakes, setSessionMistakes] = useState<Mistake[]>([])
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [drillType, setDrillType] = useState<"daily" | "weakness">("daily")
+  const [sessionLeaks, setSessionLeaks] = useState<Leak[]>(mockLeaks)
+  const [sessionTotalEvLoss, setSessionTotalEvLoss] = useState(0)
   
   // Generate random multi-street hands for daily training
   const randomHands: MultiStreetHand[] = useMemo(() => {
@@ -31,14 +33,56 @@ export function MobileApp() {
     setCurrentHandIndex(0)
     setSessionMistakes([])
     setSessionCorrect(0)
+    setSessionLeaks(mockLeaks)
+    setSessionTotalEvLoss(0)
     setCurrentScreen("drill")
+  }
+
+  const recomputeLeaksFromMistakes = (mistakes: Mistake[]): Leak[] => {
+    if (!mistakes.length) return mockLeaks
+
+    const EV_TOLERANCE = 0.5
+    const byCategory: Record<string, { mistakeSteps: number; totalSteps: number; evLoss: number }> = {}
+
+    for (const m of mistakes) {
+      const steps = m.steps || []
+      for (const step of steps) {
+        const cat = step.category
+        if (!byCategory[cat]) {
+          byCategory[cat] = { mistakeSteps: 0, totalSteps: 0, evLoss: 0 }
+        }
+        byCategory[cat].totalSteps += 1
+        if (step.evLoss > EV_TOLERANCE) {
+          byCategory[cat].mistakeSteps += 1
+        }
+        byCategory[cat].evLoss += step.evLoss
+      }
+    }
+
+    const leaks: Leak[] = Object.entries(byCategory).map(([category, stats], index) => ({
+      id: String(index + 1),
+      category,
+      mistakeRate: stats.totalSteps ? Math.round((stats.mistakeSteps / stats.totalSteps) * 100) : 0,
+      evLoss: Number(stats.evLoss.toFixed(1)),
+      description: `${category} spots based on recent drills`,
+    }))
+
+    // Sort by highest EV loss first so worst leaks are on top
+    leaks.sort((a, b) => b.evLoss - a.evLoss)
+    return leaks
   }
 
   const handleDecision = (correct: boolean, mistake?: Mistake) => {
     if (correct) {
       setSessionCorrect((prev) => prev + 1)
     } else if (mistake) {
-      setSessionMistakes((prev) => [...prev, mistake])
+      setSessionMistakes((prev) => {
+        const next = [...prev, mistake]
+        setSessionLeaks(recomputeLeaksFromMistakes(next))
+        const addedEvLoss = mistake.totalEvLoss ?? 0
+        setSessionTotalEvLoss((prevLoss) => prevLoss + addedEvLoss)
+        return next
+      })
     }
 
     setUserStats((prev) => ({
@@ -84,7 +128,7 @@ export function MobileApp() {
       case "review":
         return (
           <ReviewScreen
-            mistakes={mockMistakes}
+            mistakes={sessionMistakes.length ? sessionMistakes : mockMistakes}
             onReplaySpot={(id) => {
               setCurrentHandIndex(Number.parseInt(id) - 1)
               setCurrentScreen("drill")
@@ -94,7 +138,11 @@ export function MobileApp() {
         )
       case "leaks":
         return (
-          <LeaksScreen onStartWeaknessDrill={() => startDrill("weakness")} onBack={() => setCurrentScreen("home")} />
+          <LeaksScreen
+            onStartWeaknessDrill={() => startDrill("weakness")}
+            onBack={() => setCurrentScreen("home")}
+            leaks={sessionLeaks}
+          />
         )
       case "summary":
         return (

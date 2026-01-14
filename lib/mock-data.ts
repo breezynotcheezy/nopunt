@@ -54,12 +54,23 @@ export interface Leak {
   description: string
 }
 
+export interface MistakeStepSummary {
+  street: HandScenario["street"]
+  category: string
+  userAction: string
+  optimalAction: string
+  evLoss: number
+}
+
 export interface Mistake {
   id: string
   category: string
   hand: HandScenario
   userAction: string
   timestamp: Date
+  // Optional rich EV summary for this hand
+  totalEvLoss?: number
+  steps?: MistakeStepSummary[]
 }
 
 export const TIER_THRESHOLDS: Record<Tier, { min: number; max: number; color: string }> = {

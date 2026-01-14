@@ -4,14 +4,15 @@ import { ArrowLeft, Lock, Zap, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { mockLeaks } from "@/lib/mock-data"
+import type { Leak } from "@/lib/mock-data"
 
 interface LeaksScreenProps {
   onStartWeaknessDrill: () => void
   onBack: () => void
+  leaks: Leak[]
 }
 
-export function LeaksScreen({ onStartWeaknessDrill, onBack }: LeaksScreenProps) {
+export function LeaksScreen({ onStartWeaknessDrill, onBack, leaks }: LeaksScreenProps) {
   return (
     <div className="px-5 py-4">
       {/* Header */}
@@ -47,7 +48,7 @@ export function LeaksScreen({ onStartWeaknessDrill, onBack }: LeaksScreenProps) 
       {/* Leaks List */}
       <div className="space-y-3 mb-6">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Your Leaks</h2>
-        {mockLeaks.map((leak) => (
+        {leaks.map((leak) => (
           <Card key={leak.id} className="glass p-4">
             <div className="flex items-start justify-between mb-3">
               <div>

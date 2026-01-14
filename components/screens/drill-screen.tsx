@@ -43,6 +43,7 @@ export function DrillScreen({
   const [aiAction, setAiAction] = useState<string | null>(null)
   const [aiSizing, setAiSizing] = useState<number | null>(null)
   const [aiEv, setAiEv] = useState<number>(0)
+  const [aiActions, setAiActions] = useState<Record<string, { ev: number; sizing: number | null; explanation: string }> | null>(null)
   const [heroVisualAction, setHeroVisualAction] = useState<string | null>(null)
   const [heroVisualSize, setHeroVisualSize] = useState<number | null>(null)
 
@@ -54,9 +55,13 @@ export function DrillScreen({
     ev: number
     explanation: string
     correct: boolean
+    evLoss: number
   }
 
   const [stepResults, setStepResults] = useState<StepResult[]>([])
+
+  const EV_TOLERANCE = 0.5
+  const EV_PUNT_THRESHOLD = 3
 
   // Reset when a new hand starts
   useEffect(() => {
@@ -81,6 +86,7 @@ export function DrillScreen({
     setAiAction(null);
     setAiSizing(null);
     setAiEv(0);
+    setAiActions(null);
     
     fetch('/api/solver', {
       method: 'POST',
@@ -101,9 +107,10 @@ export function DrillScreen({
             setAiError(data.error);
           } else {
             setAiSolution(data.solution || 'No solution available');
-            setAiAction(data.action || null);
-            setAiSizing(data.sizing || null);
-            setAiEv(data.ev || 0);
+            setAiAction(data.optimalAction || data.action || null);
+            setAiSizing((data.optimalSizing ?? data.sizing) || null);
+            setAiEv(typeof data.optimalEv === "number" ? data.optimalEv : data.ev || 0);
+            setAiActions(data.actions || null);
           }
           setAiLoading(false);
         }
@@ -124,30 +131,46 @@ export function DrillScreen({
     setHeroVisualSize(sizing ?? null)
     setSelectedAction(finalAction)
 
-    // Use AI-determined action if available, otherwise fall back to scenario's correctAction
-    const correctAction = aiAction || currentScenario.correctAction
-    
-    // Normalize actions for comparison
-    const userActionNormalized = action.toLowerCase();
-    const correctActionNormalized = correctAction.toLowerCase();
-    
-    // Handle action equivalencies (bet/raise are similar)
-    const isCorrect =
-      userActionNormalized === correctActionNormalized ||
-      (userActionNormalized === "bet" && correctActionNormalized === "raise") ||
-      (userActionNormalized === "raise" && correctActionNormalized === "bet") ||
-      (userActionNormalized === "raise" && correctActionNormalized === "raise")
+    // Use the scenario's correctAction as the SINGLE authoritative solution.
+    // The AI is only used for EV estimates and explanations.
+    const correctAction = currentScenario.correctAction
+    const userActionNormalized = action.toLowerCase()
+
+    let optimalEvForStreet = correctEv
+    let userEv = correctEv
+
+    if (aiActions && aiActions[userActionNormalized]) {
+      const entry = aiActions[userActionNormalized]
+      if (typeof entry.ev === "number") {
+        userEv = entry.ev
+      }
+    }
+
+    const evLoss = Math.max(0, optimalEvForStreet - userEv)
+    const isCorrect = evLoss <= EV_TOLERANCE
 
     // Record per-street result and compute updated results array
     const nextResults: StepResult[] = [...stepResults]
+
+    const correctKey = correctAction.toLowerCase()
+    let stepExplanation = currentScenario.explanation
+    if (!stepExplanation) {
+      if (aiActions && aiActions[correctKey] && aiActions[correctKey].explanation) {
+        stepExplanation = aiActions[correctKey].explanation
+      } else if (aiSolution) {
+        stepExplanation = aiSolution
+      }
+    }
+
     nextResults[currentStepIndex] = {
       street: currentScenario.street,
       userAction: finalAction,
       optimalAction: correctAction,
       optimalSizing: correctSizing ?? null,
       ev: correctEv,
-      explanation: aiSolution || currentScenario.explanation,
+      explanation: stepExplanation,
       correct: isCorrect,
+      evLoss,
     }
     setStepResults(nextResults)
 
@@ -156,8 +179,29 @@ export function DrillScreen({
     const isLastStep = foldedEarly || currentStepIndex >= hand.steps.length - 1
 
     if (isLastStep) {
-      // At the end of the hand, surface the reflection overlay
       const allCorrect = nextResults.every((r) => r?.correct)
+      const totalEvLoss = nextResults.reduce((sum, r) => sum + (r?.evLoss ?? 0), 0)
+
+      const stepsSummary = nextResults
+        .map((r, index) => {
+          const step = hand.steps[index]
+          if (!r || !step) return null
+          return {
+            street: r.street,
+            category: step.category,
+            userAction: r.userAction,
+            optimalAction: r.optimalAction,
+            evLoss: r.evLoss,
+          }
+        })
+        .filter(Boolean) as {
+          street: HandScenario["street"]
+          category: string
+          userAction: string
+          optimalAction: string
+          evLoss: number
+        }[]
+
       onDecision(
         allCorrect,
         allCorrect
@@ -168,6 +212,8 @@ export function DrillScreen({
               hand: currentScenario,
               userAction: finalAction,
               timestamp: new Date(),
+              totalEvLoss,
+              steps: stepsSummary,
             },
       )
 
@@ -214,15 +260,40 @@ export function DrillScreen({
     onNext()
   }
 
-  // Determine correct action (AI or fallback to scenario)
-  const correctAction = aiAction || currentScenario.correctAction
-  const correctSizing = aiSizing || currentScenario.correctSizing
-  const correctEv = aiEv !== 0 ? aiEv : currentScenario.evDelta
+  // Determine correct action strictly from the scenario.
+  // AI may refine EV/sizing, but never changes which action is "optimal".
+  const correctAction = currentScenario.correctAction
+
+  // Prefer scenario sizing; if absent, fall back to AI sizing suggestion.
+  const correctSizing = currentScenario.correctSizing ?? aiSizing ?? null
+
+  // Compute EV for the correct action:
+  // - If the AI provided an EV entry for the scenario's correctAction, use it.
+  // - Otherwise, fall back to the scenario's evDelta.
+  // - If neither is available, use the best AI EV as a baseline.
+  let correctEv = currentScenario.evDelta
+
+  if (aiActions) {
+    const key = correctAction.toLowerCase()
+    const entry = aiActions[key]
+    if (entry && typeof entry.ev === "number") {
+      correctEv = entry.ev
+    } else {
+      const values = Object.values(aiActions)
+      if (values.length) {
+        correctEv = values.reduce((max, v) => (v.ev > max ? v.ev : max), values[0].ev)
+      }
+    }
+  } else if (aiEv !== 0) {
+    // Backwards-compatible fallback if EV map is missing but a scalar EV exists
+    correctEv = aiEv
+  }
   const activeOpponent = currentScenario.players.find(p => p.isActive && !p.isFolded)
   const facingBet = activeOpponent?.betAmount !== undefined && activeOpponent.betAmount > 0
-  
-  const isCorrect = selectedAction?.toLowerCase().startsWith(correctAction.toLowerCase())
-  const verdictType = isCorrect ? "correct" : Math.random() > 0.5 ? "mistake" : "punt"
+
+  const totalEvLossForHand = stepResults.reduce((sum, r) => sum + (r?.evLoss ?? 0), 0)
+  const isCorrect = stepResults.length > 0 && stepResults.every((r) => r?.correct)
+  const verdictType = isCorrect ? "correct" : totalEvLossForHand > EV_PUNT_THRESHOLD ? "punt" : "mistake"
 
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
