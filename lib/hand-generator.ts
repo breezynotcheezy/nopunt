@@ -102,7 +102,7 @@ export function generateRandomHandScenario(id: string): HandScenario {
   const heroHand = generateRandomHand();
   const board = generateRandomBoard(street);
   const stackDepth = 50 + Math.floor(Math.random() * 100);
-  const blinds = getRandomElement(["1/2", "2/5", "1/3"]);
+  const blinds = "1/2";
   
   // Determine if there's a bet (60% chance postflop, 40% preflop)
   const hasBet = street === "preflop" 
@@ -157,12 +157,11 @@ export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
   const position = getRandomElement(POSITIONS);
   const heroHand = generateRandomHand();
   const stackDepth = 50 + Math.floor(Math.random() * 100);
-  const blinds = getRandomElement(["1/2", "2/5", "1/3"]);
+  const blinds = "1/2";
 
-  // Decide how many streets this hand will play (at least preflop + one postflop street)
+  // Always play through all four streets for consistency
   const streetOrder: ("preflop" | "flop" | "turn" | "river")[] = ["preflop", "flop", "turn", "river"];
-  const maxStreetIndex = Math.floor(Math.random() * streetOrder.length); // 0-3
-  const usedStreets = streetOrder.slice(0, Math.max(2, maxStreetIndex + 1));
+  const usedStreets = streetOrder;
 
   // Build a single 5-card board and reveal it progressively
   const fullBoard = generateRandomBoard("river") ?? [];
