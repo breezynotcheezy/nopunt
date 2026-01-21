@@ -1,4 +1,4 @@
-import type { HandScenario, Player, MultiStreetHand } from "./mock-data";
+import type { HandScenario, Player } from "./mock-data";
 
 const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
 const SUITS = ["s", "h", "d", "c"];
@@ -6,7 +6,7 @@ const POSITIONS = ["UTG", "MP", "CO", "BTN", "SB", "BB", "EP"];
 const STREETS: ("preflop" | "flop" | "turn" | "river")[] = ["preflop", "flop", "turn", "river"];
 
 function getRandomElement<T>(array: T[]): T {
-  return array[Math.floor(Math.random()*array.length)];
+  return array[Math.floor(Math.random() * array.length)];
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -49,50 +49,56 @@ function generateRandomBoard(street: "preflop" | "flop" | "turn" | "river"): str
   return shuffled.slice(0, boardSize);
 }
 
-function generateAction(position: string, street: string, hasBet: boolean, opponentPosition: string, betAmount?: number): string {
+function generateAction(position: string, street: string, hasBet: boolean, opponentPosition: string, betAmount?: number, sb?: number, bb?: number): string {
+  const betText = betAmount ? `${betAmount}bb` : `${Math.max(2, Math.round((bb || 2) * 2.5))}bb`;
   if (street === "preflop") {
     if (hasBet) {
-      return `${opponentPosition} raises to ${betAmount || 6}bb, folds to Hero`;
+      return `${opponentPosition} raises to ${betText}, folds to Hero`;
     } else {
-      return "Folds to Hero";
+      return position === "BB" ? `${opponentPosition} folds, action on Hero in BB` : "Folds to Hero";
     }
   } else {
     // Postflop
     if (hasBet) {
-      return `${opponentPosition} bets ${betAmount || 15}bb`;
+      return `${opponentPosition} bets ${betText}`;
     } else {
       return `${opponentPosition} checks`;
     }
   }
 }
 
-function generatePlayers(position: string, street: string, hasBet: boolean): Player[] {
+function generatePlayers(position: string, hasBet: boolean, betAmount: number | undefined, sb: number, bb: number): Player[] {
   const positions = ["UTG", "MP", "CO", "BTN", "SB", "BB"];
   const players: Player[] = [];
-  
-  // Choose exactly ONE non-hero position to be the active opponent
-  const nonHeroPositions = positions.filter((p) => p !== position);
-  const activeOpponentPos = getRandomElement(nonHeroPositions);
 
-  for (const pos of positions) {
-    if (pos === position) continue; //skip hero action
+  // Exactly one active opponent
+  const activeOpponentIndex = Math.floor(Math.random() * (positions.length - 1));
+  let activeCount = 0;
 
-    const shouldBeActive = pos === activeOpponentPos;
-    const isFolded = !shouldBeActive;
+  for (let i = 0; i < positions.length; i++) {
+    const pos = positions[i];
+    if (pos === position) continue; // Skip hero
 
-    // Only set betAmount if there's actually a bet and this is the active opponent
-    const betAmount = hasBet && shouldBeActive ? Math.floor(Math.random() * 15) + 3 : undefined;
+    const isActive = activeCount === 0 && i === activeOpponentIndex;
+    if (isActive) activeCount++;
+    const isFolded = !isActive;
+
+    // Blinds
+    const blindBet = pos === "SB" ? sb : pos === "BB" ? bb : 0;
+    const finalBetAmount = isActive && hasBet ? betAmount : blindBet > 0 ? blindBet : undefined;
 
     players.push({
       position: pos,
       stack: 85 + Math.floor(Math.random() * 30),
-      isActive: shouldBeActive,
-      isFolded: isFolded,
+      isActive,
+      isFolded,
       isDealer: pos === "BTN",
-      betAmount: betAmount,
-    });
+      betAmount: finalBetAmount,
+      // for table display compatibility
+      currentBet: finalBetAmount,
+    } as Player & { currentBet?: number });
   }
-  
+
   return players;
 }
 
@@ -102,36 +108,26 @@ export function generateRandomHandScenario(id: string): HandScenario {
   const heroHand = generateRandomHand();
   const board = generateRandomBoard(street);
   const stackDepth = 50 + Math.floor(Math.random() * 100);
-  const blinds = "1/2";
-  
-  // Determine if there's a bet (60% chance postflop, 40% preflop)
-  const hasBet = street === "preflop" 
-    ? Math.random() > 0.4 
-    : Math.random() > 0.4;
-  
-  // Generate players first to get the active opponent
-  const players = generatePlayers(position, street, hasBet);
-  const activeOpponent = players.find(p => p.isActive && !p.isFolded);
-  const opponentPosition = activeOpponent?.position || "BB";
-  const betAmount = activeOpponent?.betAmount;
-  
-  // Generate action string that matches the actual state
-  const action = generateAction(position, street, hasBet, opponentPosition, betAmount);
-  
-  // Calculate pot size accurately
+  const blinds = getRandomElement(["1/2", "2/5", "1/3"]);
   const [sb, bb] = blinds.split("/").map(Number);
-  let potSize = sb + bb; // Start with blinds
-  
-  // Add any bets
-  if (betAmount) {
-    potSize += betAmount;
-  }
-  
-  // If postflop, add previous street action
-  if (street !== "preflop") {
-    potSize += Math.floor(Math.random() * 20) + 5; // Previous action
-  }
-  
+
+  // Preflop betting likelihood; BB more likely to face action
+  const hasBet = street === "preflop" ? Math.random() < (position === "BB" ? 0.7 : 0.6) : Math.random() < 0.5;
+  const raiseSize = hasBet ? Math.max(3, Math.round((bb || 2) * (2 + Math.random() * 2))) : undefined;
+
+  // Generate players and determine active opponent
+  const players = generatePlayers(position, hasBet, raiseSize, sb, bb);
+  const activeOpponent = players.find((p) => p.isActive && !p.isFolded);
+  const opponentPosition = activeOpponent?.position || "UTG";
+  const betAmount = activeOpponent?.betAmount;
+
+  const action = generateAction(position, street, hasBet, opponentPosition, betAmount, sb, bb);
+
+  // Pot starts with blinds
+  let potSize = sb + bb;
+  if (betAmount) potSize += betAmount;
+  if (street !== "preflop") potSize += Math.floor(Math.random() * 12) + 3;
+
   return {
     id,
     position,
@@ -149,74 +145,3 @@ export function generateRandomHandScenario(id: string): HandScenario {
     players,
   };
 }
-
-// Generate a multi-street hand where the hero plays the same hand across
-// consecutive streets against a single active opponent. This keeps things
-// coherent without trying to simulate a full engine.
-export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
-  const position = getRandomElement(POSITIONS);
-  const heroHand = generateRandomHand();
-  const stackDepth = 50 + Math.floor(Math.random() * 100);
-  const blinds = "1/2";
-
-  // Always play through all four streets for consistency
-  const streetOrder: ("preflop" | "flop" | "turn" | "river")[] = ["preflop", "flop", "turn", "river"];
-  const usedStreets = streetOrder;
-
-  // Build a single 5-card board and reveal it progressively
-  const fullBoard = generateRandomBoard("river") ?? [];
-
-  const steps: HandScenario[] = [];
-  let cumulativePot = 0;
-
-  usedStreets.forEach((street, index) => {
-    // Determine visible board on this street
-    let board: string[] | undefined = undefined;
-    if (street === "flop") board = fullBoard.slice(0, 3);
-    if (street === "turn") board = fullBoard.slice(0, 4);
-    if (street === "river") board = fullBoard.slice(0, 5);
-
-    // Simple previous-pot model: blinds + random previous action
-    if (index === 0) {
-      const [sb, bb] = blinds.split("/").map(Number);
-      cumulativePot = (sb || 1) + (bb || 2);
-    } else {
-      cumulativePot += Math.floor(Math.random() * 15) + 5;
-    }
-
-    const hasBet = Math.random() > 0.35;
-    const players = generatePlayers(position, street, hasBet);
-    const activeOpponent = players.find((p) => p.isActive && !p.isFolded);
-    const opponentPosition = activeOpponent?.position || "BB";
-    const betAmount = activeOpponent?.betAmount;
-    const action = generateAction(position, street, hasBet, opponentPosition, betAmount);
-
-    let potSize = cumulativePot;
-    if (betAmount) {
-      potSize += betAmount;
-    }
-
-    const scenario: HandScenario = {
-      id: `${id}-step-${index + 1}`,
-      position,
-      stackDepth,
-      blinds,
-      action,
-      potSize,
-      heroHand,
-      board,
-      street,
-      // Let the AI-backed solver determine details; use neutral placeholders
-      correctAction: "call",
-      evDelta: 0,
-      explanation: "",
-      category: `${street.charAt(0).toUpperCase() + street.slice(1)} Decision`,
-      players,
-    };
-
-    steps.push(scenario);
-  });
-
-  return { id, steps };
-}
-

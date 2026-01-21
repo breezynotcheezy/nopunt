@@ -64,19 +64,19 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   const suitSymbol = suitSymbols[suit] || suit
 
   const sizeClasses = {
-    xs: "w-[28px] h-[42px]",
-    sm: "w-[36px] h-[54px]",
-    md: "w-[48px] h-[72px]",
-    lg: "w-[72px] h-[108px]",
-    xl: "w-[90px] h-[135px]",
+    xs: "w-[22px] h-[34px]",
+    sm: "w-[29px] h-[43px]",
+    md: "w-[38px] h-[58px]",
+    lg: "w-[58px] h-[86px]",
+    xl: "w-[72px] h-[108px]",
   }
 
   const fontSizes = {
-    xs: { rank: "text-[10px]", suit: "text-[8px]", center: "text-sm" },
-    sm: { rank: "text-[12px]", suit: "text-[10px]", center: "text-base" },
-    md: { rank: "text-[18px]", suit: "text-[12px]", center: "text-lg" },
-    lg: { rank: "text-[20px]", suit: "text-[13px]", center: "text-xl" },
-    xl: { rank: "text-[22px]", suit: "text-[14px]", center: "text-2xl" },
+    xs: { rank: "text-[9px]", suit: "text-[8px]", center: "text-sm" },
+    sm: { rank: "text-[10px]", suit: "text-[10px]", center: "text-base" },
+    md: { rank: "text-[14px]", suit: "text-[12px]", center: "text-lg" },
+    lg: { rank: "text-[16px]", suit: "text-[13px]", center: "text-xl" },
+    xl: { rank: "text-[18px]", suit: "text-[14px]", center: "text-2xl" },
   }
 
   const cornerIconSizes: Record<NonNullable<PlayingCardProps['size']>, string> = {
@@ -88,78 +88,15 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   }
 
   const centerIconSizes: Record<NonNullable<PlayingCardProps['size']>, string> = {
-    xs: "w-[12px] h-[12px]",
-    sm: "w-[16px] h-[16px]",
-    md: "w-[26px] h-[26px]",
-    lg: "w-[40px] h-[40px]",
-    xl: "w-[52px] h-[52px]",
+    xs: "w-[10px] h-[10px]",
+    sm: "w-[13px] h-[13px]",
+    md: "w-[21px] h-[21px]",
+    lg: "w-[32px] h-[32px]",
+    xl: "w-[42px] h-[42px]",
   }
   const pipShadow = "drop-shadow-[0_0.5px_0_rgba(0,0,0,0.25)]"
 
-  // Rank helpers and pip layout
   const rankChar = rank
-  const rankValue = rank === 'A' ? 1 : rank === 'T' ? 10 : Number.isNaN(Number(rank)) ? null : parseInt(rank, 10)
-  const isFace = rank === 'J' || rank === 'Q' || rank === 'K'
-
-  // Pip layout positions (percentages)
-  const cols = { left: 30, center: 50, right: 70 }
-  const rows = { top: 20, upper: 34, middle: 50, lower: 66, bottom: 80 }
-
-  type Pip = { x: number; y: number; rotate?: boolean }
-  const pipsFor = (n: number): Pip[] => {
-    switch (n) {
-      case 2:
-        return [
-          { x: cols.center, y: rows.top },
-          { x: cols.center, y: rows.bottom, rotate: true },
-        ]
-      case 3:
-        return [
-          { x: cols.center, y: rows.top },
-          { x: cols.center, y: rows.middle },
-          { x: cols.center, y: rows.bottom, rotate: true },
-        ]
-      case 4:
-        return [
-          { x: cols.left, y: rows.upper },
-          { x: cols.right, y: rows.upper },
-          { x: cols.left, y: rows.lower, rotate: true },
-          { x: cols.right, y: rows.lower, rotate: true },
-        ]
-      case 5:
-        return [...pipsFor(4), { x: cols.center, y: rows.middle }]
-      case 6:
-        return [
-          { x: cols.left, y: rows.top },
-          { x: cols.right, y: rows.top },
-          { x: cols.left, y: rows.middle },
-          { x: cols.right, y: rows.middle },
-          { x: cols.left, y: rows.bottom, rotate: true },
-          { x: cols.right, y: rows.bottom, rotate: true },
-        ]
-      case 7:
-        return [...pipsFor(6), { x: cols.center, y: rows.upper }]
-      case 8:
-        return [...pipsFor(6), { x: cols.center, y: rows.upper }, { x: cols.center, y: rows.lower, rotate: true }]
-      case 9:
-        return [...pipsFor(8), { x: cols.center, y: rows.middle }]
-      case 10:
-        return [
-          { x: cols.left, y: rows.top },
-          { x: cols.right, y: rows.top },
-          { x: cols.left, y: rows.upper },
-          { x: cols.right, y: rows.upper },
-          { x: cols.left, y: rows.middle },
-          { x: cols.right, y: rows.middle },
-          { x: cols.left, y: rows.lower, rotate: true },
-          { x: cols.right, y: rows.lower, rotate: true },
-          { x: cols.left, y: rows.bottom, rotate: true },
-          { x: cols.right, y: rows.bottom, rotate: true },
-        ]
-      default:
-        return []
-    }
-  }
 
   return (
     <div
@@ -185,7 +122,7 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
 
       {/* Top left corner */}
       <div className={cn("absolute top-1 left-1.5 flex flex-col items-center leading-none z-10", colors.text)}>
-        <span className={cn("font-serif font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
+        <span className={cn("font-sans font-extrabold tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
       </div>
 
       {/* Face / Ace / Numbered center area */}
@@ -195,7 +132,7 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
 
       {/* Bottom right corner (rotated) */}
       <div className={cn("absolute bottom-1 right-1.5 flex flex-col items-center leading-none z-10 rotate-180 hidden", colors.text)}>
-        <span className={cn("font-serif font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
+        <span className={cn("font-sans font-extrabold tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
       </div>
     </div>
   )
