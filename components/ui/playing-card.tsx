@@ -64,19 +64,19 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   const suitSymbol = suitSymbols[suit] || suit
 
   const sizeClasses = {
-    xs: "w-7 h-9",
-    sm: "w-9 h-12",
-    md: "w-12 h-16",
-    lg: "w-16 h-24",
-    xl: "w-20 h-28",
+    xs: "w-[28px] h-[42px]",
+    sm: "w-[36px] h-[54px]",
+    md: "w-[48px] h-[72px]",
+    lg: "w-[72px] h-[108px]",
+    xl: "w-[90px] h-[135px]",
   }
 
   const fontSizes = {
     xs: { rank: "text-[10px]", suit: "text-[8px]", center: "text-sm" },
     sm: { rank: "text-[12px]", suit: "text-[10px]", center: "text-base" },
-    md: { rank: "text-[16px]", suit: "text-[12px]", center: "text-lg" },
-    lg: { rank: "text-[18px]", suit: "text-[13px]", center: "text-xl" },
-    xl: { rank: "text-[20px]", suit: "text-[14px]", center: "text-2xl" },
+    md: { rank: "text-[18px]", suit: "text-[12px]", center: "text-lg" },
+    lg: { rank: "text-[20px]", suit: "text-[13px]", center: "text-xl" },
+    xl: { rank: "text-[22px]", suit: "text-[14px]", center: "text-2xl" },
   }
 
   const cornerIconSizes: Record<NonNullable<PlayingCardProps['size']>, string> = {
@@ -88,11 +88,11 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   }
 
   const centerIconSizes: Record<NonNullable<PlayingCardProps['size']>, string> = {
-    xs: "w-3.5 h-3.5",
-    sm: "w-4 h-4",
-    md: "w-5 h-5",
-    lg: "w-6 h-6",
-    xl: "w-7 h-7",
+    xs: "w-[12px] h-[12px]",
+    sm: "w-[16px] h-[16px]",
+    md: "w-[26px] h-[26px]",
+    lg: "w-[40px] h-[40px]",
+    xl: "w-[52px] h-[52px]",
   }
   const pipShadow = "drop-shadow-[0_0.5px_0_rgba(0,0,0,0.25)]"
 
@@ -164,7 +164,7 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   return (
     <div
       className={cn(
-        "relative rounded-xl overflow-hidden",
+        "relative rounded-xl overflow-hidden flex-none block align-top box-border",
         // White face with subtle warm tint for premium feel
         "bg-gradient-to-br from-white via-white to-zinc-50",
         // Neutral micro border
@@ -186,38 +186,16 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
       {/* Top left corner */}
       <div className={cn("absolute top-1 left-1.5 flex flex-col items-center leading-none z-10", colors.text)}>
         <span className={cn("font-serif font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
-        <SuitIcon suit={suit} className={cn("mt-0.5", colors.text, cornerIconSizes[size], pipShadow)} />
       </div>
 
       {/* Face / Ace / Numbered center area */}
-      <div className={cn("absolute inset-0 z-0", colors.text)}>
-        {isFace ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={cn("font-serif font-black", fontSizes[size].center)}>{rank}</span>
-          </div>
-        ) : rankValue === 1 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <SuitIcon suit={suit} className={cn("opacity-95", centerIconSizes[size], pipShadow)} />
-          </div>
-        ) : rankValue && rankValue >= 2 && rankValue <= 10 ? (
-          <div className="absolute inset-0">
-            {pipsFor(rankValue).map((p, idx) => (
-              <div
-                key={idx}
-                className={cn("absolute", p.rotate && "rotate-180")}
-                style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%, -50%)" }}
-              >
-                <SuitIcon suit={suit} className={cn(centerIconSizes[size], pipShadow)} />
-              </div>
-            ))}
-          </div>
-        ) : null}
+      <div className={cn("absolute inset-0 z-0 flex items-center justify-center", colors.text)}>
+        <SuitIcon suit={suit} className={cn("opacity-95", centerIconSizes[size], pipShadow)} />
       </div>
 
       {/* Bottom right corner (rotated) */}
-      <div className={cn("absolute bottom-1 right-1.5 flex flex-col items-center leading-none z-10 rotate-180", colors.text)}>
+      <div className={cn("absolute bottom-1 right-1.5 flex flex-col items-center leading-none z-10 rotate-180 hidden", colors.text)}>
         <span className={cn("font-serif font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
-        <SuitIcon suit={suit} className={cn("mt-0.5", colors.text, cornerIconSizes[size], pipShadow)} />
       </div>
     </div>
   )

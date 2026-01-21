@@ -93,7 +93,8 @@ export function DrillScreen({
     setHeroVisualSize(null)
     const firstStep = hand.steps[0]
     const players0 = firstStep?.players || []
-    const heroIsDealer = players0.some((p) => p.isDealer && p.position === firstStep?.position)
+    const pos = (firstStep?.position || "").toUpperCase()
+    const heroIsDealer = players0.some((p) => p.isDealer && p.position === firstStep?.position) || ["BTN", "SB", "BU"].includes(pos)
     setDealerIsHero(heroIsDealer)
     setVillainThinking(false)
     setPreflopPosted(false)
@@ -434,7 +435,7 @@ export function DrillScreen({
     // Backwards-compatible fallback if EV map is missing but a scalar EV exists
     correctEv = aiEv
   }
-  const activeOpponent = currentScenario.players.find(p => p.isActive && !p.isFolded)
+  const activeOpponent = currentScenario.players.find(p => p.isActive && !p.isFolded && p.position !== currentScenario.position)
   const parseStreetAction = (s: string): { type: 'bet' | 'check' | 'none'; size?: number } => {
     if (!s) return { type: 'none' }
     const betMatch = s.match(/bet[s]?\s+(\d+)/i)
@@ -444,9 +445,18 @@ export function DrillScreen({
   }
   const parsed = parseStreetAction(currentScenario.action)
   const facingBetFromAction = parsed.type === 'bet' ? true : parsed.type === 'check' ? false : undefined
-  const facingBet = facingBetFromAction ?? (activeOpponent?.betAmount !== undefined && activeOpponent.betAmount > 0)
   const postedHeroPreflop = currentScenario.street === 'preflop' ? (dealerIsHero ? 1 : 2) : 0
-  const callCostUnits = facingBet ? Math.max(0, Math.round(villainBetLocal) - postedHeroPreflop) : 0
+  const oppBetEffective = currentScenario.street === 'preflop'
+    ? Math.max(villainBetLocal, activeOpponent?.betAmount ?? 0)
+    : Math.max(villainBetLocal, activeOpponent?.betAmount ?? 0)
+  const facingBet = (() => {
+    if (typeof facingBetFromAction === 'boolean') return facingBetFromAction
+    if (currentScenario.street === 'preflop') {
+      return oppBetEffective > postedHeroPreflop
+    }
+    return oppBetEffective > 0
+  })()
+  const callCostUnits = facingBet ? Math.max(0, Math.round(oppBetEffective) - postedHeroPreflop) : 0
 
   useEffect(() => {
     if (currentScenario.street !== 'preflop' || preflopPosted) return

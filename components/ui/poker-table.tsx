@@ -155,9 +155,12 @@ export function PokerTable({
 
   // Identify a primary active villain for simple entry animations
   const activeVillain = tablePlayers.find((p) => p.isActive && !p.isFolded)
-  const villainFacingBet =
-    activeVillain?.betAmount !== undefined && activeVillain.betAmount > 0
-  const villainChecked = !!activeVillain && !villainFacingBet
+  const villainAggBet =
+    activeVillain?.betAmount !== undefined &&
+    (street === "preflop"
+      ? (activeVillain.betAmount as number) > (dealerIsHero ? bbAmount : sbAmount)
+      : (activeVillain.betAmount as number) > 0)
+  const villainChecked = !!activeVillain && !villainAggBet
   const heroBetting = !!heroAction && ["bet", "raise", "call"].includes(heroAction)
   const heroChecking = heroAction === "check"
   const VILLAIN_DECISION_DELAY_S = 0.6
@@ -203,8 +206,8 @@ export function PokerTable({
                 const isActive = displayedVillain === activeVillain
                 const parsed = parseStreetAction(action)
                 const showThinking = !!villainThinking
-                const showBet = !showThinking && isActive && (villainFacingBet || parsed.type === 'bet')
-                const showCheck = !showThinking && isActive && !villainFacingBet && parsed.type === 'check'
+                const showBet = !showThinking && isActive && (villainAggBet || parsed.type === 'bet')
+                const showCheck = !showThinking && isActive && !villainAggBet && parsed.type === 'check'
 
                 return (
                   <>
@@ -271,13 +274,13 @@ export function PokerTable({
                       style={chipStyle}
                     >
                       <div className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold", "text-transparent")}>.</div>
-                      {isActive && villainFacingBet && !displayedVillain.isFolded && !villainThinking && (
+                      {isActive && villainAggBet && !displayedVillain.isFolded && !villainThinking && (
                         <div className="mt-1 relative flex items-end gap-1.5">
                           {renderChipStack(displayedVillain.betAmount ?? 1, "sm")}
                           <div
                             className="px-1.5 py-0.5 rounded-full bg-red-500/20 border border-red-400/50 text-[10px] font-bold text-red-200 shadow-sm"
                             style={
-                              isActive && villainFacingBet
+                              isActive && villainAggBet
                                 ? { animation: `chip-bet 0.6s ease-out ${VILLAIN_DECISION_DELAY_S}s`, animationFillMode: "both" }
                                 : undefined
                             }
@@ -330,18 +333,43 @@ export function PokerTable({
             {/* External hero CHECK label removed; hero chip label already shows CHECK */}
           </div>
 
-          {/* Preflop blind chip overlays removed per request */}
+          {street === "preflop" && (
+            <>
+              <div
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-[8]"
+                style={getChipPositionStyle(dealerIsHero ? "HERO" : "MP")}
+              >
+                <div className="relative flex items-end gap-1" style={{ marginTop: dealerIsHero ? -16 : 16 }}>
+                  {renderChipStack(sbAmount, "sm")}
+                  <div className="ml-1 px-1.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-[10px] font-semibold text-zinc-100">
+                    {sbAmount}bb
+                  </div>
+                </div>
+              </div>
+              <div
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-[8]"
+                style={getChipPositionStyle(dealerIsHero ? "MP" : "HERO")}
+              >
+                <div className="relative flex items-end gap-1" style={{ marginTop: dealerIsHero ? 16 : -16 }}>
+                  {renderChipStack(bbAmount, "sm")}
+                  <div className="ml-1 px-1.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-[10px] font-semibold text-zinc-100">
+                    {bbAmount}bb
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Community Cards - centered on the felt */}
           {board && board.length > 0 && (
-            <div className="absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)]">
+            <div className="absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-3 z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)]">
               {board.map((card, i) => {
                 const isNew = i >= newStartIndex
                 const delayMs = isNew ? (i - newStartIndex) * 120 : 0
                 return (
                   <div
                     key={i}
-                    className={cn(isNew && "animate-card-peel")}
+                    className={cn("shrink-0", isNew && "animate-card-peel")}
                     style={isNew ? { animationDelay: `${delayMs}ms` } : undefined}
                   >
                     <PlayingCard card={card} size="lg" />
@@ -351,7 +379,7 @@ export function PokerTable({
               {Array.from({ length: 5 - board.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="w-16 h-24 rounded-md border border-dashed border-zinc-700/40 bg-zinc-900/20"
+                  className="w-[72px] h-[108px] rounded-md border border-dashed border-zinc-700/40 bg-zinc-900/20 shrink-0"
                 />
               ))}
             </div>
@@ -370,9 +398,9 @@ export function PokerTable({
               Blinds {sbAmount}/{bbAmount}
             </p>
             {/* Chip animation into the pot whenever someone bets/raises/calls */}
-            {(((villainFacingBet && !villainThinking) || heroBetting)) && (
+            {(((villainAggBet && !villainThinking) || heroBetting)) && (
               <div className="mt-1 flex gap-1">
-                {villainFacingBet && (
+                {villainAggBet && (
                   <div
                     className={cn(
                       "chip-token relative rounded-full border border-white/50 shadow-md",
@@ -403,7 +431,7 @@ export function PokerTable({
       </div>
 
       <div className="shrink-0 flex items-center justify-center mb-1">
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-sm border border-white/10 shadow-2xl">
+        <div className="grid grid-cols-2 items-center gap-3 p-1.5 rounded-2xl bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-sm border border-white/10 shadow-2xl">
           <PlayingCard card={heroHand[0]} size="xl" />
           <PlayingCard card={heroHand[1]} size="xl" />
         </div>
