@@ -6,7 +6,7 @@ const POSITIONS = ["UTG", "MP", "CO", "BTN", "SB", "BB", "EP"];
 const STREETS: ("preflop" | "flop" | "turn" | "river")[] = ["preflop", "flop", "turn", "river"];
 
 function getRandomElement<T>(array: T[]): T {
-  return array[Math.floor(Math.random() * array.length)];
+  return array[Math.floor(Math.random()*array.length)];
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -75,7 +75,7 @@ function generatePlayers(position: string, street: string, hasBet: boolean): Pla
   const activeOpponentPos = getRandomElement(nonHeroPositions);
 
   for (const pos of positions) {
-    if (pos === position) continue; // Skip hero entirely here; hero is modelled separately
+    if (pos === position) continue; //skip hero action
 
     const shouldBeActive = pos === activeOpponentPos;
     const isFolded = !shouldBeActive;
