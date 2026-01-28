@@ -6,7 +6,7 @@ export interface Player {
   isActive: boolean // still in the hand
   isFolded: boolean
   isDealer?: boolean
-  betAmount?: number
+  currentBet?: number
 }
 
 export interface UserStats {
@@ -111,11 +111,11 @@ export const mockScenarios: HandScenario[] = [
       "AKo is a premium hand that should 3-bet for value against a UTG open. Calling allows BB to come along cheaply.",
     category: "Preflop 3-bet",
     players: [
-      { position: "UTG", stack: 98, isActive: true, isFolded: false, betAmount: 6 },
+      { position: "UTG", stack: 98, isActive: true, isFolded: false, currentBet: 6 },
       { position: "MP", stack: 100, isActive: false, isFolded: true },
       { position: "CO", stack: 100, isActive: false, isFolded: true },
-      { position: "SB", stack: 99, isActive: true, isFolded: false, betAmount: 1 },
-      { position: "BB", stack: 98, isActive: true, isFolded: false, betAmount: 2 },
+      { position: "SB", stack: 99, isActive: true, isFolded: false, currentBet: 1 },
+      { position: "BB", stack: 98, isActive: true, isFolded: false, currentBet: 2 },
     ],
   },
   {
@@ -123,7 +123,7 @@ export const mockScenarios: HandScenario[] = [
     position: "BB",
     stackDepth: 85,
     blinds: "1/2",
-    action: "CO opens to 5, BTN calls, SB folds",
+    action: "CO opens to 5, BTN calls, SB folds. Action on Hero (BB)",
     potSize: 13,
     heroHand: ["9h", "9c"],
     street: "preflop",
@@ -135,8 +135,8 @@ export const mockScenarios: HandScenario[] = [
     players: [
       { position: "UTG", stack: 100, isActive: false, isFolded: true },
       { position: "MP", stack: 100, isActive: false, isFolded: true },
-      { position: "CO", stack: 95, isActive: true, isFolded: false, betAmount: 5 },
-      { position: "BTN", stack: 95, isActive: true, isFolded: false, betAmount: 5, isDealer: true },
+      { position: "CO", stack: 95, isActive: true, isFolded: false, currentBet: 5 },
+      { position: "BTN", stack: 95, isActive: true, isFolded: false, currentBet: 5, isDealer: true },
       { position: "SB", stack: 99, isActive: false, isFolded: true },
     ],
   },
@@ -145,7 +145,7 @@ export const mockScenarios: HandScenario[] = [
     position: "CO",
     stackDepth: 120,
     blinds: "1/2",
-    action: "Folds to Hero",
+    action: "UTG folds, MP folds. Action on Hero (CO)",
     potSize: 7,
     heroHand: ["Qc", "Jc"],
     street: "preflop",
@@ -158,8 +158,8 @@ export const mockScenarios: HandScenario[] = [
       { position: "UTG", stack: 100, isActive: false, isFolded: true },
       { position: "MP", stack: 100, isActive: false, isFolded: true },
       { position: "BTN", stack: 100, isActive: true, isFolded: false, isDealer: true },
-      { position: "SB", stack: 98, isActive: true, isFolded: false, betAmount: 2 },
-      { position: "BB", stack: 95, isActive: true, isFolded: false, betAmount: 5 },
+      { position: "SB", stack: 98, isActive: true, isFolded: false, currentBet: 2 },
+      { position: "BB", stack: 95, isActive: true, isFolded: false, currentBet: 5 },
     ],
   },
   {
@@ -196,7 +196,7 @@ export const mockScenarios: HandScenario[] = [
       "JJ is too strong to fold but the Q on board makes raising problematic. Calling keeps BTNs bluffs in and controls the pot.",
     category: "Facing Aggression",
     players: [
-      { position: "BTN", stack: 72, isActive: true, isFolded: false, betAmount: 18, isDealer: true },
+      { position: "BTN", stack: 72, isActive: true, isFolded: false, currentBet: 18, isDealer: true },
       { position: "BB", stack: 97, isActive: false, isFolded: true },
     ],
   },
@@ -216,7 +216,7 @@ export const mockScenarios: HandScenario[] = [
     explanation:
       "You turned the nuts! Check-raising maximizes value against COs wide turn stab range on this connected board.",
     category: "Value Raise",
-    players: [{ position: "CO", stack: 73, isActive: true, isFolded: false, betAmount: 15 }],
+    players: [{ position: "CO", stack: 73, isActive: true, isFolded: false, currentBet: 15 }],
   },
   {
     id: "7",
@@ -252,11 +252,32 @@ export const mockScenarios: HandScenario[] = [
       "AQs plays well as a 3-bet squeeze here. You have blockers to AK/AA and can often take it down preflop or play a heads-up pot in position.",
     category: "Squeeze Play",
     players: [
-      { position: "UTG", stack: 94, isActive: true, isFolded: false, betAmount: 6 },
-      { position: "MP", stack: 94, isActive: true, isFolded: false, betAmount: 6 },
+      { position: "UTG", stack: 94, isActive: true, isFolded: false, currentBet: 6 },
+      { position: "MP", stack: 94, isActive: true, isFolded: false, currentBet: 6 },
       { position: "BTN", stack: 100, isActive: true, isFolded: false, isDealer: true },
-      { position: "SB", stack: 99, isActive: true, isFolded: false, betAmount: 1 },
-      { position: "BB", stack: 98, isActive: true, isFolded: false, betAmount: 2 },
+      { position: "SB", stack: 99, isActive: true, isFolded: false, currentBet: 1 },
+      { position: "BB", stack: 98, isActive: true, isFolded: false, currentBet: 2 },
+    ],
+  },
+  {
+    id: "9",
+    position: "BB",
+    stackDepth: 100,
+    blinds: "1/2",
+    action: "UTG raises to 6, MP folds, CO folds, BTN folds, SB folds. Action on Hero (BB)",
+    potSize: 9,
+    heroHand: ["Ah", "Kc"],
+    street: "preflop",
+    correctAction: "call",
+    evDelta: 1.5,
+    explanation: "AKo is a premium hand that should call a single raise from UTG when in the big blind. 3-betting folds out worse hands and gets called by better.",
+    category: "Big Blind Defense",
+    players: [
+      { position: "UTG", stack: 94, isActive: true, isFolded: false, currentBet: 6 },
+      { position: "MP", stack: 100, isActive: false, isFolded: true },
+      { position: "CO", stack: 100, isActive: false, isFolded: true },
+      { position: "BTN", stack: 100, isActive: false, isFolded: true, isDealer: true },
+      { position: "SB", stack: 99, isActive: false, isFolded: true, currentBet: 1 },
     ],
   },
 ]

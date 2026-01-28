@@ -1,4 +1,4 @@
-import type { HandScenario, Player } from "./mock-data";
+import type { HandScenario, Player, MultiStreetHand } from "./mock-data";
 
 const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
 const SUITS = ["s", "h", "d", "c"];
@@ -93,13 +93,58 @@ function generatePlayers(position: string, hasBet: boolean, betAmount: number | 
       isActive,
       isFolded,
       isDealer: pos === "BTN",
-      betAmount: finalBetAmount,
-      // for table display compatibility
       currentBet: finalBetAmount,
     } as Player & { currentBet?: number });
   }
 
   return players;
+}
+
+export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
+  // Generate a complete hand with multiple decision points across streets
+  const position = getRandomElement(POSITIONS);
+  const heroHand = generateRandomHand();
+  const stackDepth = 50 + Math.floor(Math.random() * 100);
+  const blinds = getRandomElement(["1/2", "2/5", "1/3"]);
+  const [sb, bb] = blinds.split("/").map(Number);
+  
+  const steps: HandScenario[] = [];
+  
+  // Always start with preflop
+  const preflopScenario = generateRandomHandScenario(`${id}-preflop`);
+  preflopScenario.position = position;
+  preflopScenario.heroHand = heroHand;
+  preflopScenario.stackDepth = stackDepth;
+  preflopScenario.blinds = blinds;
+  steps.push(preflopScenario);
+  
+  // Randomly add flop, turn, and river decisions
+  const streets: ("flop" | "turn" | "river")[] = ["flop", "turn", "river"];
+  let currentBoard: string[] = [];
+  
+  for (let i = 0; i < streets.length; i++) {
+    if (Math.random() < 0.6) { // 60% chance to continue to next street
+      const street = streets[i];
+      const newCards = generateRandomBoard(street) || [];
+      currentBoard = newCards.slice(0, street === "flop" ? 3 : street === "turn" ? 4 : 5);
+      
+      const streetScenario = generateRandomHandScenario(`${id}-${street}`);
+      streetScenario.position = position;
+      streetScenario.heroHand = heroHand;
+      streetScenario.stackDepth = stackDepth;
+      streetScenario.blinds = blinds;
+      streetScenario.street = street;
+      streetScenario.board = currentBoard;
+      steps.push(streetScenario);
+    } else {
+      break; // Stop generating more streets
+    }
+  }
+  
+  return {
+    id,
+    steps,
+  };
 }
 
 export function generateRandomHandScenario(id: string): HandScenario {
@@ -119,7 +164,7 @@ export function generateRandomHandScenario(id: string): HandScenario {
   const players = generatePlayers(position, hasBet, raiseSize, sb, bb);
   const activeOpponent = players.find((p) => p.isActive && !p.isFolded);
   const opponentPosition = activeOpponent?.position || "UTG";
-  const betAmount = activeOpponent?.betAmount;
+  const betAmount = activeOpponent?.currentBet;
 
   const action = generateAction(position, street, hasBet, opponentPosition, betAmount, sb, bb);
 

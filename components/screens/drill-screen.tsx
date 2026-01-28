@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { PokerTable } from "@/components/ui/poker-table"
-import type { HandScenario, Mistake } from "@/lib/mock-data"
+import type { HandScenario, Mistake, MultiStreetHand } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 
 interface DrillScreenProps {
-  scenario: HandScenario
+  hand: MultiStreetHand
   handNumber: number
   totalHands: number
   drillType: "daily" | "weakness"
@@ -20,7 +20,7 @@ interface DrillScreenProps {
 }
 
 export function DrillScreen({
-  scenario,
+  hand,
   handNumber,
   totalHands,
   drillType,
@@ -28,6 +28,8 @@ export function DrillScreen({
   onNext,
   onExit,
 }: DrillScreenProps) {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const scenario = hand.steps[currentStepIndex]
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
   const [showVerdict, setShowVerdict] = useState(false)
   const [showRange, setShowRange] = useState(false)
@@ -85,7 +87,7 @@ export function DrillScreen({
       });
     
     return () => { cancelled = true; };
-  }, [scenario]);
+  }, [scenario, currentStepIndex]);
 
   const handleAction = (action: string, sizing?: number) => {
     const finalAction = sizing ? `${action} ${sizing}x` : action
@@ -129,13 +131,31 @@ export function DrillScreen({
   }
 
   const handleNext = () => {
-    setSelectedAction(null)
-    setShowVerdict(false)
-    setShowRange(false)
-    setBookmarked(false)
-    setShowRaiseSlider(false)
-    setRaiseSize(2.5)
-    onNext()
+    if (showVerdict) {
+      // Move to next step or next hand
+      if (currentStepIndex < hand.steps.length - 1) {
+        // Move to next step in current hand
+        setCurrentStepIndex(prev => prev + 1);
+        setSelectedAction(null);
+        setShowVerdict(false);
+        setShowRange(false);
+        setBookmarked(false);
+        setShowRaiseSlider(false);
+        setRaiseSize(2.5);
+      } else {
+        // Move to next hand
+        setSelectedAction(null);
+        setShowVerdict(false);
+        setShowRange(false);
+        setBookmarked(false);
+        setShowRaiseSlider(false);
+        setRaiseSize(2.5);
+        setCurrentStepIndex(0); // Reset to first step for next hand
+        onNext();
+      }
+    } else {
+      setShowVerdict(true);
+    }
   }
 
   // Determine correct action (AI or fallback to scenario)
@@ -166,7 +186,7 @@ export function DrillScreen({
             {drillType === "weakness" ? "Weakness Drill" : "Daily Training"}
           </span>
           <span className="text-sm font-bold text-foreground">
-            Hand {handNumber}/{totalHands}
+            Hand {handNumber}/{totalHands} • Step {currentStepIndex + 1}/{hand.steps.length}
           </span>
         </div>
         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors">
@@ -176,7 +196,10 @@ export function DrillScreen({
 
       {/* Progress bar */}
       <div className="shrink-0 px-4 py-2">
-        <Progress value={(handNumber / totalHands) * 100} className="h-1.5" />
+        <Progress value={((currentStepIndex + 1) / hand.steps.length) * 100} className="h-1.5" />
+        <div className="text-xs text-muted-foreground text-center mt-1">
+          {scenario.street.charAt(0).toUpperCase() + scenario.street.slice(1)}
+        </div>
       </div>
 
       {/* Poker Table - takes available space */}
