@@ -1,21 +1,22 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { HomeScreen } from "./screens/home-screen"
-import { DrillScreen } from "./screens/drill-screen"
-import { ReviewScreen } from "./screens/review-screen"
-import { LeaksScreen } from "./screens/leaks-screen"
-import { SessionSummaryScreen } from "./screens/session-summary-screen"
-import { ProfileScreen } from "./screens/profile-screen"
-import { BottomNav } from "./ui/bottom-nav"
-import { mockUserStats, mockScenarios, mockMistakes, mockLeaks, type UserStats, type Mistake, type MultiStreetHand, type Leak } from "@/lib/mock-data"
+import { BottomNav } from "@/components/ui/bottom-nav"
+import { HomeScreen } from "@/components/screens/home-screen"
+import { DrillScreen } from "@/components/screens/drill-screen"
+import { LeaksScreen } from "@/components/screens/leaks-screen"
+import { ProfileScreen } from "@/components/screens/profile-screen"
+import { ReviewScreen } from "@/components/screens/review-screen"
+import { SessionSummaryScreen } from "@/components/screens/session-summary-screen"
+import { mockLeaks, mockMistakes, mockScenarios, mockUserStats } from "@/lib/mock-data"
 import { generateRandomMultiStreetHand } from "@/lib/hand-generator"
+import type { HandScenario, MultiStreetHand, Mistake, Leak } from "@/lib/mock-data"
 
 export type Screen = "home" | "drill" | "review" | "leaks" | "summary" | "profile"
 
 export function MobileApp() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home")
-  const [userStats, setUserStats] = useState<UserStats>(mockUserStats)
+  const [userStats, setUserStats] = useState(mockUserStats)
   const [currentHandIndex, setCurrentHandIndex] = useState(0)
   const [sessionMistakes, setSessionMistakes] = useState<Mistake[]>([])
   const [sessionCorrect, setSessionCorrect] = useState(0)
@@ -109,10 +110,26 @@ export function MobileApp() {
       case "drill":
         // Use random multi-street hands for daily training,
         // and wrap mockScenarios as single-step hands for weakness drills.
-        const weaknessHands: MultiStreetHand[] = mockScenarios.map((s) => ({ id: s.id, steps: [s] }))
-        const hand: MultiStreetHand = drillType === "daily"
-          ? randomHands[currentHandIndex]
-          : weaknessHands[currentHandIndex % weaknessHands.length]
+        const weaknessHands: MultiStreetHand[] = mockScenarios.map((s) => {
+          if (s.street === "preflop") {
+            return { id: s.id, steps: [s] }
+          }
+          const prefix = generateRandomMultiStreetHand(`weakness-${s.id}`).steps[0]
+          const preflop: HandScenario = {
+            ...prefix,
+            id: `${s.id}-preflop`,
+            position: s.position,
+            stackDepth: s.stackDepth,
+            blinds: s.blinds,
+            heroHand: s.heroHand,
+            players: s.players,
+            potSize: s.potSize,
+            category: s.category,
+          }
+          return { id: s.id, steps: [preflop, s] }
+        })
+        const hand: MultiStreetHand =
+          drillType === "daily" ? randomHands[currentHandIndex] : weaknessHands[currentHandIndex % weaknessHands.length]
 
         return (
           <DrillScreen

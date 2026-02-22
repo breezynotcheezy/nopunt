@@ -66,9 +66,9 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   const sizeClasses = {
     xs: "w-[22px] h-[34px]",
     sm: "w-[29px] h-[43px]",
-    md: "w-[38px] h-[58px]",
-    lg: "w-[58px] h-[86px]",
-    xl: "w-[72px] h-[108px]",
+    md: "w-[52px] h-[78px]",
+    lg: "w-[74px] h-[108px]",
+    xl: "w-[92px] h-[136px]",
   }
 
   const fontSizes = {
@@ -101,28 +101,30 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   return (
     <div
       className={cn(
-        "relative rounded-xl overflow-hidden flex-none block align-top box-border",
-        // White face with subtle warm tint for premium feel
-        "bg-gradient-to-br from-white via-white to-zinc-50",
-        // Neutral micro border
-        outlined ? "border border-zinc-300" : "border border-zinc-200/70",
-        // Soft neutral shadow
-        "shadow-[0_6px_18px_rgba(0,0,0,0.20)]",
+        "relative rounded-[14px] overflow-hidden flex-none block align-top box-border",
+        // Premium face + subtle paper grain via layered gradients
+        "bg-[linear-gradient(145deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_35%,rgba(248,248,252,1)_100%)]",
+        // Crisp border + inner stroke
+        outlined ? "border border-zinc-300" : "border border-zinc-200/90",
+        "shadow-[0_14px_34px_rgba(0,0,0,0.26)]",
         sizeClasses[size],
         className,
       )}
     >
+      <div className="absolute inset-[1px] rounded-[13px] pointer-events-none ring-1 ring-black/5" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.07)_0%,transparent_52%)]" />
+      <div className="absolute inset-0 pointer-events-none opacity-40 mix-blend-overlay bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.55)_18%,transparent_36%,rgba(255,255,255,0.20)_60%,transparent_86%)]" />
+
       {outlined ? (
         <>
-          {/* Inner gold inlay and teal glow that respects theme */}
-          <div className="absolute inset-px rounded-xl pointer-events-none ring-1 ring-zinc-400/25" />
-          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.06)_0%,transparent_46%)]" />
+          <div className="absolute inset-px rounded-[13px] pointer-events-none ring-1 ring-primary/20" />
         </>
       ) : null}
 
       {/* Top left corner */}
-      <div className={cn("absolute top-1 left-1.5 flex flex-col items-center leading-none z-10", colors.text)}>
-        <span className={cn("font-sans font-extrabold tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
+      <div className={cn("absolute top-1.5 left-1.5 flex flex-col items-center leading-none z-10", colors.text)}>
+        <span className={cn("font-sans font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
+        <span className={cn("-mt-0.5 font-black", fontSizes[size].suit)}>{suitSymbol}</span>
       </div>
 
       {/* Face / Ace / Numbered center area */}
@@ -131,8 +133,9 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
       </div>
 
       {/* Bottom right corner (rotated) */}
-      <div className={cn("absolute bottom-1 right-1.5 flex flex-col items-center leading-none z-10 rotate-180 hidden", colors.text)}>
-        <span className={cn("font-sans font-extrabold tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
+      <div className={cn("absolute bottom-1.5 right-1.5 flex flex-col items-center leading-none z-10 rotate-180", colors.text)}>
+        <span className={cn("font-sans font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
+        <span className={cn("-mt-0.5 font-black", fontSizes[size].suit)}>{suitSymbol}</span>
       </div>
     </div>
   )

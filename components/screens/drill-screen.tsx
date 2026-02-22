@@ -45,6 +45,9 @@ export function DrillScreen({
 
   // Fetch AI solution whenever scenario changes
   useEffect(() => {
+    if (!scenario) return
+
+    const controller = new AbortController()
     let cancelled = false;
     setAiSolution(null);
     setAiError(null);
@@ -57,6 +60,7 @@ export function DrillScreen({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(scenario),
+      signal: controller.signal,
     })
       .then(async res => {
         const contentType = res.headers.get('content-type');
@@ -81,12 +85,17 @@ export function DrillScreen({
       })
       .catch(err => {
         if (!cancelled) {
-          setAiError(err.message || 'Error contacting AI solver');
-          setAiLoading(false);
+          if (err?.name !== "AbortError") {
+            setAiError(err.message || 'Error contacting AI solver');
+            setAiLoading(false);
+          }
         }
       });
     
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      controller.abort()
+    };
   }, [scenario, currentStepIndex]);
 
   const handleAction = (action: string, sizing?: number) => {
@@ -172,9 +181,9 @@ export function DrillScreen({
     scenario.action.toLowerCase().includes("opens")
 
   return (
-    <div className="h-full flex flex-col bg-background overflow-hidden">
+    <div className="h-full flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.18)_0%,transparent_55%),radial-gradient(ellipse_at_bottom,rgba(234,179,8,0.06)_0%,transparent_55%),linear-gradient(180deg,rgba(2,44,34,0.18)_0%,rgba(0,0,0,1)_45%,rgba(0,0,0,1)_100%)] overflow-hidden">
       {/* Header */}
-      <div className="h-12 shrink-0 flex items-center justify-between px-4 border-b border-white/5 bg-background">
+      <div className="h-12 shrink-0 flex items-center justify-between px-4 border-b border-emerald-200/10 bg-black/20 backdrop-blur-sm">
         <button
           onClick={onExit}
           className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
@@ -202,22 +211,48 @@ export function DrillScreen({
         </div>
       </div>
 
+      {/* Context strip */}
+      <div className="shrink-0 px-4 pb-2">
+        <div className="rounded-2xl border border-emerald-200/10 bg-black/25 backdrop-blur-sm px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Table</p>
+              <p className="text-sm font-extrabold text-foreground leading-tight truncate">
+                {scenario.blinds} • {scenario.stackDepth}bb
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Hero</p>
+              <p className="text-sm font-extrabold text-emerald-200 leading-tight">{scenario.position}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Poker Table - takes available space */}
-      <div className="flex-1 min-h-0 px-2">
-        <PokerTable
-          heroPosition={scenario.position}
-          heroHand={scenario.heroHand}
-          board={scenario.board}
-          potSize={scenario.potSize}
-          action={scenario.action}
-          stackDepth={scenario.stackDepth}
-          blinds={scenario.blinds}
-          players={scenario.players}
-        />
+      <div className="flex-1 min-h-0 px-3 pb-2">
+        <div className="h-full w-full max-w-[520px] mx-auto">
+          <div className="relative h-full overflow-visible">
+            <div className="relative h-full flex items-stretch justify-center">
+              <div className="w-full flex items-center justify-center">
+                <PokerTable
+                  heroPosition={scenario.position}
+                  heroHand={scenario.heroHand}
+                  board={scenario.board}
+                  potSize={scenario.potSize}
+                  action={scenario.action}
+                  stackDepth={scenario.stackDepth}
+                  blinds={scenario.blinds}
+                  players={scenario.players}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Action Panel - fixed at bottom */}
-      <div className="shrink-0 px-3 pb-4 pt-2 border-t border-white/5 bg-gradient-to-t from-background to-background/80">
+      <div className="shrink-0 px-3 pb-4 pt-3 border-t border-emerald-200/10 bg-gradient-to-t from-black via-black/70 to-black/30 backdrop-blur-sm">
         {!showVerdict ? (
           <div className="space-y-2">
             {/* Raise Slider */}

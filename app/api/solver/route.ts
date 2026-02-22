@@ -14,22 +14,22 @@ export async function POST(req: NextRequest) {
 
     const hand = await req.json();
 
-    // Build comprehensive hand context for AI
+    // Build hand context for AI
     const activePlayers = hand.players?.filter((p: any) => p.isActive && !p.isFolded) || [];
-    const facingBet = hand.action?.toLowerCase().includes("bet") || 
-                      hand.action?.toLowerCase().includes("raise") ||
-                      activePlayers.some((p: any) => p.betAmount && p.betAmount > 0);
+    const facingBet =
+      hand.action?.toLowerCase().includes("bet") ||
+      hand.action?.toLowerCase().includes("raise") ||
+      activePlayers.some((p: any) => p.currentBet && p.currentBet > 0);
     
     const boardText = hand.board && hand.board.length > 0 
       ? `Board: ${hand.board.join(" ")}` 
       : "Preflop";
     
-    const playersInfo = activePlayers.map((p: any) => 
-      `${p.position}${p.isDealer ? " (D)" : ""}${p.betAmount ? ` bet ${p.betAmount}bb` : ""}`
-    ).join(", ");
+    const playersInfo = activePlayers
+      .map((p: any) => `${p.position}${p.isDealer ? " (D)" : ""}${p.currentBet ? ` bet ${p.currentBet}bb` : ""}`)
+      .join(", ");
 
-    // Compose comprehensive OpenAI prompt for solving ANY hand
-    const prompt = `You are a GTO (Game Theory Optimal) poker solver. Analyze this poker hand and provide the optimal decision.
+    const prompt = `You are a deterministic, high-precision poker decision engine.
 
 Hand Details:
 - Position: ${hand.position}
@@ -41,20 +41,20 @@ Hand Details:
 - Action: ${hand.action}
 - Active Players: ${playersInfo || "None"}
 
+Constraints:
+- Return the single best action (fold/call/raise).
+- If raising, choose a single reasonable sizing in bb.
+- Be consistent and repeatable: do NOT randomize.
+- Output MUST be valid JSON and MUST match the schema exactly.
+
 Provide your analysis in this exact JSON format:
 {
   "action": "fold" | "call" | "raise",
   "sizing": <number in bb if raise, null otherwise>,
   "ev": <expected value in bb, can be negative>,
-  "explanation": "<one sentence explaining the decision>"
+  "explanation": "<concise explanation (max 220 chars)>"
 }
-
-Be precise and consider:
-- Hand strength relative to board
-- Position and stack depth
-- Pot odds and implied odds
-- Opponent ranges based on action
-- GTO principles for this spot`;
+`;
 
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -73,8 +73,13 @@ Be precise and consider:
           { role: "user", content: prompt }
         ],
         max_tokens: 200,
-        temperature: 0.1,
-        response_format: { type: "json_object" }
+        temperature: 0,
+        top_p: 1,
+        presence_penalty: 0,
+        frequency_penalty: 0,
+        // Seed improves repeatability when supported
+        seed: 1337,
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -94,7 +99,7 @@ Be precise and consider:
     const aiResponseText = data?.choices?.[0]?.message?.content || "{}";
     
     // Parse AI response
-    let aiSolution;
+    let aiSolution: any;
     try {
       aiSolution = JSON.parse(aiResponseText);
     } catch {
@@ -107,11 +112,17 @@ Be precise and consider:
       };
     }
 
+    const action = typeof aiSolution?.action === "string" ? aiSolution.action.toLowerCase() : "call";
+    const normalizedAction = action === "fold" || action === "call" || action === "raise" ? action : "call";
+    const sizing = normalizedAction === "raise" && typeof aiSolution?.sizing === "number" ? aiSolution.sizing : null;
+    const ev = typeof aiSolution?.ev === "number" ? aiSolution.ev : 0;
+    const explanation = typeof aiSolution?.explanation === "string" ? aiSolution.explanation : "Analysis complete";
+
     return NextResponse.json({
-      solution: aiSolution.explanation || "Analysis complete",
-      action: aiSolution.action || "call",
-      sizing: aiSolution.sizing || null,
-      ev: aiSolution.ev || 0,
+      solution: explanation,
+      action: normalizedAction,
+      sizing,
+      ev,
       solved: true
     });
   } catch (err: any) {
