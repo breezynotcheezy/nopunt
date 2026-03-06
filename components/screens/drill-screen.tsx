@@ -169,7 +169,7 @@ export function DrillScreen({
 
   // Determine correct action (AI or fallback to scenario)
   const correctAction = aiAction || scenario.correctAction
-  const correctSizing = aiSizing || scenario.correctSizing
+  const correctSizing = aiSizing || scenario.correctSizing || undefined
   const correctEv = aiEv !== 0 ? aiEv : scenario.evDelta
   
   const isCorrect = selectedAction?.toLowerCase().startsWith(correctAction.toLowerCase())
@@ -181,56 +181,35 @@ export function DrillScreen({
     scenario.action.toLowerCase().includes("opens")
 
   return (
-    <div className="h-full flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.18)_0%,transparent_55%),radial-gradient(ellipse_at_bottom,rgba(234,179,8,0.06)_0%,transparent_55%),linear-gradient(180deg,rgba(2,44,34,0.18)_0%,rgba(0,0,0,1)_45%,rgba(0,0,0,1)_100%)] overflow-hidden">
+    <div className="relative h-full flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.18)_0%,transparent_55%),radial-gradient(ellipse_at_bottom,rgba(234,179,8,0.06)_0%,transparent_55%),linear-gradient(180deg,rgba(2,44,34,0.18)_0%,rgba(0,0,0,1)_45%,rgba(0,0,0,1)_100%)] overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.35)_68%,rgba(0,0,0,0.85)_100%)]" />
       {/* Header */}
-      <div className="h-12 shrink-0 flex items-center justify-between px-4 border-b border-emerald-200/10 bg-black/20 backdrop-blur-sm">
+      <div className="relative h-16 shrink-0 flex items-end justify-between px-4 pb-2 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.22)_0%,transparent_62%)]">
         <button
           onClick={onExit}
           className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            {drillType === "weakness" ? "Weakness Drill" : "Daily Training"}
-          </span>
-          <span className="text-sm font-bold text-foreground">
-            Hand {handNumber}/{totalHands} • Step {currentStepIndex + 1}/{hand.steps.length}
-          </span>
+        <div className="flex-1 px-3">
+          <div className="text-center">
+            <p className="text-[18px] sm:text-[19px] font-black tracking-[-0.015em] text-foreground leading-none truncate">
+              <span className="bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
+                {drillType === "weakness" ? "Weakness Drill" : "Daily Training"}
+              </span>
+              <span className="text-foreground/40"> — </span>
+              <span className="text-emerald-200">Hand {handNumber}</span>
+              <span className="text-foreground/60">/{totalHands}</span>
+            </p>
+          </div>
         </div>
         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors">
           <HelpCircle className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="shrink-0 px-4 py-2">
-        <Progress value={((currentStepIndex + 1) / hand.steps.length) * 100} className="h-1.5" />
-        <div className="text-xs text-muted-foreground text-center mt-1">
-          {scenario.street.charAt(0).toUpperCase() + scenario.street.slice(1)}
-        </div>
-      </div>
-
-      {/* Context strip */}
-      <div className="shrink-0 px-4 pb-2">
-        <div className="rounded-2xl border border-emerald-200/10 bg-black/25 backdrop-blur-sm px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Table</p>
-              <p className="text-sm font-extrabold text-foreground leading-tight truncate">
-                {scenario.blinds} • {scenario.stackDepth}bb
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Hero</p>
-              <p className="text-sm font-extrabold text-emerald-200 leading-tight">{scenario.position}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Poker Table - takes available space */}
-      <div className="flex-1 min-h-0 px-3 pb-2">
+      <div className="relative flex-1 min-h-0 px-3 pb-3">
         <div className="h-full w-full max-w-[520px] mx-auto">
           <div className="relative h-full overflow-visible">
             <div className="relative h-full flex items-stretch justify-center">

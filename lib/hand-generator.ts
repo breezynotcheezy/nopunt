@@ -9,6 +9,23 @@ function getRandomElement<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
 
+function generateHeadsUpPreflopPlayers(heroPosition: "SB" | "BB", sb: number, bb: number): Player[] {
+  const heroIsSb = heroPosition === "SB";
+  const opponentPosition: "SB" | "BB" = heroIsSb ? "BB" : "SB";
+
+  const opponent: Player = {
+    position: opponentPosition,
+    stack: 85 + Math.floor(Math.random() * 30),
+    isActive: true, // Always active in heads-up
+    isFolded: false, // Never folded initially
+    isDealer: heroIsSb, // HU: dealer is SB
+    currentBet: opponentPosition === "SB" ? sb : bb,
+  };
+
+  console.log('Generated opponent:', opponent);
+  return [opponent];
+}
+
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -102,7 +119,6 @@ function generatePlayers(position: string, hasBet: boolean, betAmount: number | 
 
 export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
   // Generate a complete hand with multiple decision points across streets
-  const position = getRandomElement(POSITIONS);
   const heroHand = generateRandomHand();
   const stackDepth = 50 + Math.floor(Math.random() * 100);
   const blinds = getRandomElement(["1/2", "2/5", "1/3"]);
@@ -112,10 +128,11 @@ export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
   
   // Always start with preflop
   const preflopScenario = generateRandomHandScenario(`${id}-preflop`);
-  preflopScenario.position = position;
+  preflopScenario.street = "preflop";
   preflopScenario.heroHand = heroHand;
   preflopScenario.stackDepth = stackDepth;
   preflopScenario.blinds = blinds;
+  preflopScenario.board = undefined;
   steps.push(preflopScenario);
   
   // Randomly add flop, turn, and river decisions
@@ -129,7 +146,7 @@ export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
       currentBoard = newCards.slice(0, street === "flop" ? 3 : street === "turn" ? 4 : 5);
       
       const streetScenario = generateRandomHandScenario(`${id}-${street}`);
-      streetScenario.position = position;
+      streetScenario.position = preflopScenario.position;
       streetScenario.heroHand = heroHand;
       streetScenario.stackDepth = stackDepth;
       streetScenario.blinds = blinds;
@@ -148,34 +165,44 @@ export function generateRandomMultiStreetHand(id: string): MultiStreetHand {
 }
 
 export function generateRandomHandScenario(id: string): HandScenario {
-  const position = getRandomElement(POSITIONS);
-  const street = getRandomElement(STREETS);
+  // ALWAYS START PREFLOP - NO RANDOM STREET SELECTION
+  const street = "preflop";
   const heroHand = generateRandomHand();
-  const board = generateRandomBoard(street);
+  const board = undefined; // Always undefined for preflop
   const stackDepth = 50 + Math.floor(Math.random() * 100);
   const blinds = getRandomElement(["1/2", "2/5", "1/3"]);
   const [sb, bb] = blinds.split("/").map(Number);
 
-  // Preflop betting likelihood; BB more likely to face action
-  const hasBet = street === "preflop" ? Math.random() < (position === "BB" ? 0.7 : 0.6) : Math.random() < 0.5;
-  const raiseSize = hasBet ? Math.max(3, Math.round((bb || 2) * (2 + Math.random() * 2))) : undefined;
+  // Heads-up blind mechanics for ALL preflop spots
+  const finalPosition = Math.random() < 0.5 ? "SB" : "BB";
+  const players = generateHeadsUpPreflopPlayers(finalPosition as "SB" | "BB", sb, bb);
 
-  // Generate players and determine active opponent
-  const players = generatePlayers(position, hasBet, raiseSize, sb, bb);
-  const activeOpponent = players.find((p) => p.isActive && !p.isFolded);
-  const opponentPosition = activeOpponent?.position || "UTG";
-  const betAmount = activeOpponent?.currentBet;
+  let action: string;
+  let potSize: number;
 
-  const action = generateAction(position, street, hasBet, opponentPosition, betAmount, sb, bb);
-
-  // Pot starts with blinds
-  let potSize = sb + bb;
-  if (betAmount) potSize += betAmount;
-  if (street !== "preflop") potSize += Math.floor(Math.random() * 12) + 3;
+  // Ensure SB acts first 100% of the time
+  if (finalPosition === "SB") {
+    // Hero is SB, already posted 1bb; BB may raise or check
+    const hasBet = Math.random() < 0.3; // 30% chance BB raises
+    if (hasBet) {
+      const bbRaiseSize = Math.max(3, Math.round(bb * 3));
+      action = `BB raises to ${bbRaiseSize}bb, action on Hero (SB)`;
+      // Opponent bet becomes the total put in this round for BB
+      players[0].currentBet = bbRaiseSize;
+      potSize = sb + bbRaiseSize;
+    } else {
+      action = "Action on Hero (SB)";
+      potSize = sb + bb;
+    }
+  } else {
+    // Hero is BB, SB always acts first; simplest model: SB folds or limps
+    action = "SB folds, action on Hero (BB)";
+    potSize = sb + bb;
+  }
 
   return {
     id,
-    position,
+    position: finalPosition,
     stackDepth,
     blinds,
     action,
@@ -186,7 +213,7 @@ export function generateRandomHandScenario(id: string): HandScenario {
     correctAction: "fold", // Will be determined by AI
     evDelta: 0, // Will be determined by AI
     explanation: "", // Will be determined by AI
-    category: `${street.charAt(0).toUpperCase() + street.slice(1)} Decision`,
+    category: "Preflop Decision",
     players,
   };
 }

@@ -12,8 +12,8 @@ interface PlayingCardProps {
 const suitColors: Record<string, { text: string }> = {
   h: { text: "text-[#C8102E]" },
   d: { text: "text-[#C8102E]" },
-  s: { text: "text-[#0b0d12]" },
-  c: { text: "text-[#0b0d12]" },
+  s: { text: "text-black" },
+  c: { text: "text-black" },
 }
 
 const suitSymbols: Record<string, string> = {
@@ -74,9 +74,9 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   const fontSizes = {
     xs: { rank: "text-[9px]", suit: "text-[8px]", center: "text-sm" },
     sm: { rank: "text-[10px]", suit: "text-[10px]", center: "text-base" },
-    md: { rank: "text-[14px]", suit: "text-[12px]", center: "text-lg" },
-    lg: { rank: "text-[16px]", suit: "text-[13px]", center: "text-xl" },
-    xl: { rank: "text-[18px]", suit: "text-[14px]", center: "text-2xl" },
+    md: { rank: "text-[15px]", suit: "text-[14px]", center: "text-lg" },
+    lg: { rank: "text-[16px]", suit: "text-[14px]", center: "text-xl" },
+    xl: { rank: "text-[20px]", suit: "text-[17px]", center: "text-2xl" },
   }
 
   const cornerIconSizes: Record<NonNullable<PlayingCardProps['size']>, string> = {
@@ -90,11 +90,12 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
   const centerIconSizes: Record<NonNullable<PlayingCardProps['size']>, string> = {
     xs: "w-[10px] h-[10px]",
     sm: "w-[13px] h-[13px]",
-    md: "w-[21px] h-[21px]",
+    md: "w-[24px] h-[24px]",
     lg: "w-[32px] h-[32px]",
-    xl: "w-[42px] h-[42px]",
+    xl: "w-[48px] h-[48px]",
   }
-  const pipShadow = "drop-shadow-[0_0.5px_0_rgba(0,0,0,0.25)]"
+  const pipShadow = "drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] drop-shadow-[0_0_8px_rgba(0,0,0,0.08)]"
+  const cornerTextShadow = "[text-shadow:0_1px_0_rgba(255,255,255,0.55),0_0_10px_rgba(0,0,0,0.10)]"
 
   const rankChar = rank
 
@@ -123,8 +124,8 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
 
       {/* Top left corner */}
       <div className={cn("absolute top-1.5 left-1.5 flex flex-col items-center leading-none z-10", colors.text)}>
-        <span className={cn("font-sans font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
-        <span className={cn("-mt-0.5 font-black", fontSizes[size].suit)}>{suitSymbol}</span>
+        <span className={cn("font-sans font-black tracking-tight", fontSizes[size].rank, cornerTextShadow)}>{rankChar}</span>
+        <span className={cn("-mt-0.5 font-black", fontSizes[size].suit, cornerTextShadow)}>{suitSymbol}</span>
       </div>
 
       {/* Face / Ace / Numbered center area */}
@@ -134,8 +135,8 @@ export function PlayingCard({ card, size = "md", className, outlined = false }: 
 
       {/* Bottom right corner (rotated) */}
       <div className={cn("absolute bottom-1.5 right-1.5 flex flex-col items-center leading-none z-10 rotate-180", colors.text)}>
-        <span className={cn("font-sans font-black tracking-tight", fontSizes[size].rank)}>{rankChar}</span>
-        <span className={cn("-mt-0.5 font-black", fontSizes[size].suit)}>{suitSymbol}</span>
+        <span className={cn("font-sans font-black tracking-tight", fontSizes[size].rank, cornerTextShadow)}>{rankChar}</span>
+        <span className={cn("-mt-0.5 font-black", fontSizes[size].suit, cornerTextShadow)}>{suitSymbol}</span>
       </div>
     </div>
   )

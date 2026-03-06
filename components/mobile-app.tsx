@@ -118,12 +118,9 @@ export function MobileApp() {
           const preflop: HandScenario = {
             ...prefix,
             id: `${s.id}-preflop`,
-            position: s.position,
             stackDepth: s.stackDepth,
             blinds: s.blinds,
             heroHand: s.heroHand,
-            players: s.players,
-            potSize: s.potSize,
             category: s.category,
           }
           return { id: s.id, steps: [preflop, s] }
@@ -180,12 +177,9 @@ export function MobileApp() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-[390px] h-[844px] bg-background rounded-[2.5rem] overflow-hidden relative border border-border/50 shadow-2xl shadow-primary/5">
-        {/* Phone frame notch */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[28px] bg-background rounded-b-2xl z-50" />
-
         {/* Screen content - fixed height, no scroll on home */}
         <div
-          className={`h-full pt-10 ${currentScreen === "home" || currentScreen === "drill" ? "overflow-hidden" : "overflow-y-auto"}`}
+          className={`h-full ${currentScreen === "home" || currentScreen === "drill" ? "overflow-hidden" : "overflow-y-auto"}`}
         >
           {renderScreen()}
         </div>
